@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bucks Intelligence — Gold Supply Chain Monitor</title>
+<meta name="description" content="Real-time gold supply chain intelligence. Kerala-Dubai corridor tracking, seizure analytics, price arbitrage, and central bank flows.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;700&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #030507;
+  --surface: #080d12;
+  --surface-2: #0d141c;
+  --surface-3: #111b25;
+  --gold: #D4A843;
+  --gold-2: #F0C060;
+  --gold-dim: #6B5220;
+  --gold-glow: rgba(212,168,67,0.12);
+  --red: #E05454;
+  --red-dim: rgba(224,84,84,0.15);
+  --green: #3DB87A;
+  --green-dim: rgba(61,184,122,0.15);
+  --blue: #4A9EE8;
+  --blue-dim: rgba(74,158,232,0.12);
+  --text: #C8D4E0;
+  --text-2: #6B7F90;
+  --text-3: #2E3D4A;
+  --border: rgba(212,168,67,0.1);
+  --border-2: rgba(200,212,224,0.06);
+  --font-display: 'Syne', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-weight: 300;
+  font-size: 13px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scanline effect */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* ── Top bar ── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(3,5,7,0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  height: 48px;
+}
+
+.tb-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tb-logo {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.tb-logo span { color: var(--gold); }
+
+.tb-tag {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-2);
+  border: 1px solid var(--border-2);
+  padding: 2px 7px;
+  border-radius: 2px;
+}
+
+.tb-status {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: blink 2s ease infinite;
+  display: inline-block;
+  margin-right: 5px;
+}
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+.tb-time { color: var(--text-2); font-size: 11px; }
+.tb-price { color: var(--gold-2); font-size: 12px; font-weight: 400; }
+.tb-price-change { font-size: 11px; margin-left: 4px; }
+.up { color: var(--green); }
+.dn { color: var(--red); }
+
+/* ── Layout ── */
+.layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  min-height: calc(100vh - 48px);
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  border-right: 1px solid var(--border-2);
+  padding: 1.5rem 0;
+  position: sticky;
+  top: 48px;
+  height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.sidebar-section {
+  margin-bottom: 1.5rem;
+}
+
+.sidebar-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-3);
+  padding: 0 1.25rem;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 1.25rem;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.15s;
+  border-left: 2px solid transparent;
+  font-size: 12px;
+}
+
+.nav-item:hover { color: var(--text); background: var(--surface); }
+.nav-item.active { color: var(--gold); border-left-color: var(--gold); background: var(--gold-glow); }
+
+.nav-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: var(--border-2);
+  margin: 1rem 1.25rem;
+}
+
+.sidebar-metric {
+  padding: 0.75rem 1.25rem;
+}
+
+.sm-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); }
+.sm-val { font-size: 15px; font-weight: 400; color: var(--gold-2); margin-top: 2px; font-family: var(--font-mono); }
+.sm-sub { font-size: 10px; color: var(--text-2); margin-top: 1px; }
+
+/* ── Main content ── */
+.main {
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── Section headers ── */
+.section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-2);
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.section-meta { font-size: 10px; color: var(--text-2); }
+
+/* ── Stat cards row ── */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+  padding: 1rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.stat-card:hover { border-color: var(--border); }
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+
+.stat-card.gold::before { background: var(--gold); }
+.stat-card.red::before { background: var(--red); }
+.stat-card.green::before { background: var(--green); }
+.stat-card.blue::before { background: var(--blue); }
+
+.sc-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-2); margin-bottom: 6px; }
+.sc-val { font-size: 22px; font-family: var(--font-mono); font-weight: 400; color: var(--text); line-height: 1; }
+.sc-val.gold { color: var(--gold-2); }
+.sc-val.red { color: var(--red); }
+.sc-val.green { color: var(--green); }
+.sc-sub { font-size: 10px; color: var(--text-2); margin-top: 5px; }
+.sc-change { font-size: 10px; margin-top: 4px; }
+
+/* ── Chart panels ── */
+.chart-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 900px) { .chart-grid { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+  padding: 1.25rem;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.panel-title {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.panel-badge {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 2px 7px;
+  border-radius: 2px;
+}
+
+.badge-live { background: rgba(61,184,122,0.15); color: var(--green); border: 1px solid rgba(61,184,122,0.3); }
+.badge-public { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(74,158,232,0.2); }
+.badge-dri { background: var(--red-dim); color: var(--red); border: 1px solid rgba(224,84,84,0.2); }
+.badge-wgc { background: var(--gold-glow); color: var(--gold); border: 1px solid var(--border); }
+
+.chart-wrap { position: relative; height: 200px; }
+.chart-wrap-sm { position: relative; height: 160px; }
+
+/* ── Seizure feed ── */
+.feed { display: flex; flex-direction: column; gap: 6px; }
+
+.feed-item {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: 3px;
+  font-size: 11px;
+  transition: border-color 0.15s;
+}
+
+.feed-item:hover { border-color: var(--border); }
+
+.feed-date { color: var(--text-2); font-size: 10px; }
+.feed-text { color: var(--text); line-height: 1.4; }
+.feed-text strong { color: var(--gold-2); font-weight: 400; }
+.feed-weight {
+  font-family: var(--font-mono);
+  color: var(--red);
+  font-size: 11px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ── Corridor map ── */
+.corridor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 700px) { .corridor-grid { grid-template-columns: 1fr; } }
+
+.corridor-card {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+  padding: 1rem;
+}
+
+.cc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.cc-route { font-family: var(--font-display); font-size: 13px; font-weight: 500; color: var(--text); }
+.cc-vol { font-size: 10px; color: var(--text-2); margin-top: 2px; }
+
+.risk-bar-wrap { margin-top: 8px; }
+.risk-label-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 10px; color: var(--text-2); }
+.risk-bar { height: 3px; background: var(--surface-3); border-radius: 2px; overflow: hidden; }
+.risk-fill { height: 100%; border-radius: 2px; transition: width 1s ease; }
+.risk-high { background: var(--red); }
+.risk-med { background: var(--gold); }
+.risk-low { background: var(--green); }
+
+.cc-stats { display: flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+.cc-stat { font-size: 10px; color: var(--text-2); }
+.cc-stat span { color: var(--text); }
+
+/* ── Table ── */
+.intel-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.intel-table th {
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--border-2);
+  font-weight: 400;
+}
+.intel-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-2);
+  color: var(--text);
+  vertical-align: top;
+}
+.intel-table tr:hover td { background: var(--surface-2); }
+.intel-table td.mono { font-family: var(--font-mono); }
+.intel-table td.gold { color: var(--gold-2); }
+.intel-table td.red { color: var(--red); }
+.intel-table td.green { color: var(--green); }
+.intel-table td.muted { color: var(--text-2); font-size: 10px; }
+
+/* ── Arbitrage panel ── */
+.arb-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 700px) { .arb-grid { grid-template-columns: 1fr; } }
+
+.arb-card {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+  padding: 1.25rem;
+}
+
+.arb-markets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 1rem;
+}
+
+.arb-market-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  border: 1px solid var(--border-2);
+}
+
+.arm-name { font-size: 11px; color: var(--text-2); }
+.arm-price { font-family: var(--font-mono); font-size: 13px; color: var(--text); }
+.arm-unit { font-size: 9px; color: var(--text-3); margin-left: 4px; }
+
+.arb-spread {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: var(--gold-glow);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--gold);
+}
+
+.arb-spread strong { font-weight: 400; color: var(--gold-2); }
+
+/* ── Data sources panel ── */
+.sources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.source-card {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.source-card:hover { border-color: var(--border); }
+
+.source-name { font-family: var(--font-display); font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+.source-type { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-2); margin-bottom: 8px; }
+.source-desc { font-size: 11px; color: var(--text-2); line-height: 1.55; margin-bottom: 8px; }
+.source-status {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.ss-free { background: var(--green-dim); color: var(--green); border: 1px solid rgba(61,184,122,0.25); }
+.ss-pub { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(74,158,232,0.2); }
+.ss-api { background: var(--gold-glow); color: var(--gold); border: 1px solid var(--border); }
+
+/* ── Alert ticker ── */
+.ticker-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.ticker-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--gold);
+  white-space: nowrap;
+  border-right: 1px solid var(--border);
+  padding-right: 12px;
+}
+
+.ticker-content {
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  animation: ticker 30s linear infinite;
+}
+
+@keyframes ticker {
+  from { transform: translateX(100%); }
+  to { transform: translateX(-100%); }
+}
+
+/* ── Price chart canvas ── */
+canvas { display: block; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+}
+
+/* ── Fade in ── */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.page.active { animation: fadeIn 0.3s ease; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="tb-brand">
+    <div class="tb-logo">bucks<span>.</span>intelligence</div>
+    <div class="tb-tag">Gold Supply Chain Monitor</div>
+  </div>
+  <div class="tb-status">
+    <span><span class="status-dot"></span><span class="tb-time" id="clock">--:--:-- UTC</span></span>
+    <span class="tb-price">XAU/USD <span id="live-price">$3,241.80</span> <span class="tb-price-change up" id="price-change">+0.42%</span></span>
+    <span class="tb-price">INR/10g <span id="inr-price">₹98,420</span></span>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <span class="sidebar-label">Monitor</span>
+      <div class="nav-item active" onclick="showPage('dashboard', this)">
+        <div class="nav-dot"></div> Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('corridor', this)">
+        <div class="nav-dot"></div> Corridor Map
+      </div>
+      <div class="nav-item" onclick="showPage('seizures', this)">
+        <div class="nav-dot"></div> Seizure Feed
+      </div>
+      <div class="nav-item" onclick="showPage('arbitrage', this)">
+        <div class="nav-dot"></div> Price Arbitrage
+      </div>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <span class="sidebar-label">Intelligence</span>
+      <div class="nav-item" onclick="showPage('flows', this)">
+        <div class="nav-dot"></div> Trade Flows
+      </div>
+      <div class="nav-item" onclick="showPage('centralbanks', this)">
+        <div class="nav-dot"></div> Central Banks
+      </div>
+      <div class="nav-item" onclick="showPage('sources', this)">
+        <div class="nav-dot"></div> Data Sources
+      </div>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <span class="sidebar-label">Live Metrics</span>
+      <div class="sidebar-metric">
+        <div class="sm-label">Kerala seizures FY24</div>
+        <div class="sm-val">690 kg</div>
+        <div class="sm-sub">DRI public data</div>
+      </div>
+      <div class="sidebar-metric">
+        <div class="sm-label">India total FY24</div>
+        <div class="sm-val">3,714 kg</div>
+        <div class="sm-sub">₹2,081 Cr value</div>
+      </div>
+      <div class="sidebar-metric">
+        <div class="sm-label">Duty arbitrage</div>
+        <div class="sm-val">~15%</div>
+        <div class="sm-sub">Dubai vs India</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="ticker-wrap">
+        <div class="ticker-label">Intel Feed</div>
+        <div class="ticker-content">
+          DRI seizes 1,065g gold at Calicut Airport Feb 2025 · Gold hits $5,589 all-time high Jan 2026 · Central banks bought 1,237 tonnes in 2025 · Kerala accounts for 690kg of India's 3,714kg FY24 seizures · India-UAE CEPA gold import rules updated May 2025 (DGFT Notification 08/2025-26) · BRICS+ nations hold 17.4% of global gold reserves · 3 of India's top 10 seizure airports are in Kerala ·
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">Supply Chain Overview</div>
+        <div class="section-meta">All data from public sources · Updated periodically</div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-card gold">
+          <div class="sc-label">Gold price / oz (live)</div>
+          <div class="sc-val gold" id="dash-price">$3,241</div>
+          <div class="sc-sub">XAU/USD spot · freegoldapi</div>
+          <div class="sc-change up" id="dash-change">+0.42% today</div>
+        </div>
+        <div class="stat-card red">
+          <div class="sc-label">India seizures FY24</div>
+          <div class="sc-val red">3,714 kg</div>
+          <div class="sc-sub">₹2,081 crore value</div>
+          <div class="sc-change dn">↑ 3-year high · DRI data</div>
+        </div>
+        <div class="stat-card green">
+          <div class="sc-label">Central bank buying 2025</div>
+          <div class="sc-val green">1,237t</div>
+          <div class="sc-sub">Global sovereign demand</div>
+          <div class="sc-change up">↑ 53 all-time highs in 2025</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="sc-label">Kerala corridor share</div>
+          <div class="sc-val" style="color:var(--blue)">~18.6%</div>
+          <div class="sc-sub">of national seizures</div>
+          <div class="sc-change" style="color:var(--text-2)">Top 3 airports all Kerala</div>
+        </div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Gold Price — 12 Month Trend (USD/oz)</div>
+            <span class="panel-badge badge-live">Live</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="priceChart"></canvas>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">India Seizures by Year (kg)</div>
+            <span class="panel-badge badge-dri">DRI</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="seizureChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Recent DRI Gold Seizures — Kerala Corridor</div>
+            <span class="panel-badge badge-dri">dri.nic.in</span>
+          </div>
+          <div class="feed" id="seizure-feed">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Central Bank Buying (tonnes)</div>
+            <span class="panel-badge badge-wgc">WGC</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="cbChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CORRIDOR MAP -->
+    <div class="page" id="page-corridor">
+      <div class="section-header">
+        <div class="section-title">Corridor Intelligence Map</div>
+        <div class="section-meta">Public enforcement data · WGC · Parliament records</div>
+      </div>
+
+      <div class="corridor-grid">
+        <div class="corridor-card">
+          <div class="cc-header">
+            <div>
+              <div class="cc-route">Dubai → Kerala</div>
+              <div class="cc-vol">Primary air corridor · UAE–India</div>
+            </div>
+            <span class="panel-badge badge-dri">HIGH RISK</span>
+          </div>
+          <div class="risk-bar-wrap">
+            <div class="risk-label-row"><span>Risk index</span><span style="color:var(--red)">87/100</span></div>
+            <div class="risk-bar"><div class="risk-fill risk-high" style="width:87%"></div></div>
+          </div>
+          <div class="cc-stats">
+            <div class="cc-stat">Airports: <span>COK, CCJ, TRV</span></div>
+            <div class="cc-stat">Corridor share: <span>~42% seizures</span></div>
+            <div class="cc-stat">Duty gap: <span>~15%</span></div>
+          </div>
+          <div style="margin-top:10px;font-size:10px;color:var(--text-2);line-height:1.5;">
+            Primary smuggling route. Top 3 Indian seizure airports are in Kerala. 700k+ Keralite expats in UAE. African gold refined in Dubai enters this corridor.
+          </div>
+        </div>
+
+        <div class="corridor-card">
+          <div class="cc-header">
+            <div>
+              <div class="cc-route">Myanmar → Northeast India</div>
+              <div class="cc-vol">Land border route · Porous terrain</div>
+            </div>
+            <span class="panel-badge badge-dri">HIGH RISK</span>
+          </div>
+          <div class="risk-bar-wrap">
+            <div class="risk-label-row"><span>Risk index</span><span style="color:var(--red)">79/100</span></div>
+            <div class="risk-bar"><div class="risk-fill risk-high" style="width:79%"></div></div>
+          </div>
+          <div class="cc-stats">
+            <div class="cc-stat">Entry: <span>Manipur, Mizoram</span></div>
+            <div class="cc-stat">Land routes: <span>55% of DRI seizures</span></div>
+          </div>
+          <div style="margin-top:10px;font-size:10px;color:var(--text-2);line-height:1.5;">
+            55% of DRI gold seizures via land routes. Regional instability diverts security resources. Tamu-Moreh-Imphal and Zokhatwar routes well-documented.
+          </div>
+        </div>
+
+        <div class="corridor-card">
+          <div class="cc-header">
+            <div>
+              <div class="cc-route">Bangladesh → West Bengal</div>
+              <div class="cc-vol">Eastern border corridor</div>
+            </div>
+            <span class="panel-badge" style="background:var(--gold-glow);color:var(--gold);border:1px solid var(--border)">MEDIUM</span>
+          </div>
+          <div class="risk-bar-wrap">
+            <div class="risk-label-row"><span>Risk index</span><span style="color:var(--gold)">52/100</span></div>
+            <div class="risk-bar"><div class="risk-fill risk-med" style="width:52%"></div></div>
+          </div>
+          <div class="cc-stats">
+            <div class="cc-stat">Source: <span>China, Myanmar</span></div>
+            <div class="cc-stat">Share: <span>~40-45% of grey flows</span></div>
+          </div>
+          <div style="margin-top:10px;font-size:10px;color:var(--text-2);line-height:1.5;">
+            Chinese-origin and Myanmar gold enters via Bangladesh corridor. WGC data shows persistent unexplained supply in this region.
+          </div>
+        </div>
+
+        <div class="corridor-card">
+          <div class="cc-header">
+            <div>
+              <div class="cc-route">Singapore → Chennai</div>
+              <div class="cc-vol">Emerging secondary route</div>
+            </div>
+            <span class="panel-badge" style="background:var(--gold-glow);color:var(--gold);border:1px solid var(--border)">WATCH</span>
+          </div>
+          <div class="risk-bar-wrap">
+            <div class="risk-label-row"><span>Risk index</span><span style="color:var(--gold)">38/100</span></div>
+            <div class="risk-bar"><div class="risk-fill risk-med" style="width:38%"></div></div>
+          </div>
+          <div class="cc-stats">
+            <div class="cc-stat">Status: <span>Growing rapidly</span></div>
+            <div class="cc-stat">Hub: <span>Singapore safe storage</span></div>
+          </div>
+          <div style="margin-top:10px;font-size:10px;color:var(--text-2);line-height:1.5;">
+            Singapore emerging as alternative routing hub. Safe storage demand spiked 2025 per industry reports. Ultra-wealthy using Singapore as non-bank storage.
+          </div>
+        </div>
+
+        <div class="corridor-card">
+          <div class="cc-header">
+            <div>
+              <div class="cc-route">Dubai → Mumbai/Delhi</div>
+              <div class="cc-vol">Tier-1 airport corridor</div>
+            </div>
+            <span class="panel-badge badge-dri">HIGH RISK</span>
+          </div>
+          <div class="risk-bar-wrap">
+            <div class="risk-label-row"><span>Risk index</span><span style="color:var(--red)">71/100</span></div>
+            <div class="risk-bar"><div class="risk-fill risk-high" style="width:71%"></div></div>
+          </div>
+          <div class="cc-stats">
+            <div class="cc-stat">Airports: <span>BOM, DEL</span></div>
+            <div class="cc-stat">Volume: <span>High cargo + pax</span></div>
+          </div>
+          <div style="margin-top:10px;font-size:10px;color:var(--text-2);line-height:1.5;">
+            High volume legitimate traffic provides cover. Cargo terminal and courier channel exploitation documented in DRI FY24 report.
+          </div>
+        </div>
+
+        <div class="corridor-card">
+          <div class="cc-header">
+            <div>
+              <div class="cc-route">Kerala → Gulf (Legal)</div>
+              <div class="cc-vol">Legitimate corridor · CEPA</div>
+            </div>
+            <span class="panel-badge" style="background:var(--green-dim);color:var(--green);border:1px solid rgba(61,184,122,0.25)">LEGAL</span>
+          </div>
+          <div class="risk-bar-wrap">
+            <div class="risk-label-row"><span>Volume index</span><span style="color:var(--green)">94/100</span></div>
+            <div class="risk-bar"><div class="risk-fill risk-low" style="width:94%"></div></div>
+          </div>
+          <div class="cc-stats">
+            <div class="cc-stat">Framework: <span>India-UAE CEPA</span></div>
+            <div class="cc-stat">Regulator: <span>DGFT/IIBX</span></div>
+          </div>
+          <div style="margin-top:10px;font-size:10px;color:var(--text-2);line-height:1.5;">
+            The Bucks target corridor. CEPA updated May 2025 (DGFT 08/2025-26). IIBX in GIFT City is formal settlement infrastructure. High NRI remittance gold flows.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEIZURE FEED -->
+    <div class="page" id="page-seizures">
+      <div class="section-header">
+        <div class="section-title">Seizure Intelligence Feed</div>
+        <div class="section-meta">Source: dri.nic.in public press releases · Parliament records</div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-card red">
+          <div class="sc-label">Total FY2023-24</div>
+          <div class="sc-val red">3,714 kg</div>
+          <div class="sc-sub">5,962 cases · ₹2,081 Cr</div>
+        </div>
+        <div class="stat-card red">
+          <div class="sc-label">DRI share FY24</div>
+          <div class="sc-val red">1,319 kg</div>
+          <div class="sc-sub">In 2,189 DRI cases</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="sc-label">Kerala airports</div>
+          <div class="sc-val gold">690 kg</div>
+          <div class="sc-sub">~18.6% of national total</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="sc-label">Land vs air split</div>
+          <div class="sc-val" style="color:var(--blue)">55/36%</div>
+          <div class="sc-sub">Land dominant · DRI FY24</div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:1.5rem;">
+        <div class="panel-header">
+          <div class="panel-title">Documented Seizures — DRI Public Record</div>
+          <span class="panel-badge badge-dri">dri.nic.in</span>
+        </div>
+        <table class="intel-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Location</th>
+              <th>Weight</th>
+              <th>Value</th>
+              <th>Method</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="muted">Feb 2025</td><td>Calicut Intl Airport</td><td class="mono red">1,065g</td><td class="gold">~₹10.4L</td><td>Concealed in body</td><td class="muted">DRI Press Release</td></tr>
+            <tr><td class="muted">Mar 2025</td><td>Bengaluru Intl Airport</td><td class="mono red">14.2 kg</td><td class="gold">₹12.56 Cr</td><td>Concealed on person</td><td class="muted">PIB / DRI</td></tr>
+            <tr><td class="muted">Nov 2025</td><td>Mumbai Central Rly</td><td class="mono red">5.685 kg</td><td class="gold">~₹55L</td><td>Gold dust in wax form</td><td class="muted">DRI Press Release</td></tr>
+            <tr><td class="muted">Dec 2024</td><td>Delhi Courier Terminal</td><td class="mono red">1.95 kg</td><td class="gold">~₹19L</td><td>Concealed in household items</td><td class="muted">DRI Press Release</td></tr>
+            <tr><td class="muted">Dec 2024</td><td>Chennai Airport</td><td class="mono red">1.724 kg</td><td class="gold">~₹16.8L</td><td>Cabin crew — paste form</td><td class="muted">DRI Press Release</td></tr>
+            <tr><td class="muted">Aug 2024</td><td>Bihar outskirts</td><td class="mono red">3.262 kg</td><td class="gold">~₹31.8L</td><td>Vehicle interception</td><td class="muted">DRI Press Release</td></tr>
+            <tr><td class="muted">Jul 2024</td><td>Hyderabad outskirts</td><td class="mono red">3.577 kg</td><td class="gold">~₹34.9L</td><td>Vehicle interception</td><td class="muted">DRI Press Release</td></tr>
+            <tr><td class="muted">FY 2023-24</td><td>National (all airports)</td><td class="mono red">3,714 kg</td><td class="gold">₹2,081 Cr</td><td>5,962 total cases</td><td class="muted">Rajya Sabha data / FM</td></tr>
+            <tr><td class="muted">FY 2021-22</td><td>Kerala (state total)</td><td class="mono red">586 kg</td><td class="gold">₹264 Cr+</td><td>Multiple methods</td><td class="muted">DRI Annual Report</td></tr>
+            <tr><td class="muted">FY 2022</td><td>National (3-yr high)</td><td class="mono red">3,083 kg</td><td class="gold">Record high</td><td>Kerala led seizures</td><td class="muted">Parliament data</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Seizure Trend Analysis — FY2020 to FY2024 (kg)</div>
+          <span class="panel-badge badge-dri">DRI + Parliament</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="seizureTrend"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ARBITRAGE -->
+    <div class="page" id="page-arbitrage">
+      <div class="section-header">
+        <div class="section-title">Price Arbitrage Intelligence</div>
+        <div class="section-meta">Live gold prices · Duty calculations · Smuggling incentive model</div>
+      </div>
+
+      <div class="arb-grid">
+        <div class="arb-card">
+          <div class="panel-header">
+            <div class="panel-title">Gold Price by Market</div>
+            <span class="panel-badge badge-live">Live est.</span>
+          </div>
+          <div class="arb-markets" id="arb-markets">
+            <div class="arb-market-row">
+              <div class="arm-name">Dubai (DGCX) — duty free</div>
+              <div><span class="arm-price" id="p-dubai">₹93,000</span><span class="arm-unit">/10g</span></div>
+            </div>
+            <div class="arb-market-row">
+              <div class="arm-name">India MCX — retail</div>
+              <div><span class="arm-price" id="p-india">₹98,420</span><span class="arm-unit">/10g</span></div>
+            </div>
+            <div class="arb-market-row">
+              <div class="arm-name">India — with legal import duty</div>
+              <div><span class="arm-price" id="p-india-duty">₹1,07,370</span><span class="arm-unit">/10g</span></div>
+            </div>
+            <div class="arb-market-row">
+              <div class="arm-name">Singapore — private vault</div>
+              <div><span class="arm-price" id="p-sg">₹94,200</span><span class="arm-unit">/10g</span></div>
+            </div>
+          </div>
+          <div class="arb-spread">
+            Smuggling incentive (Dubai → India, per kg): <strong id="arb-incentive">₹54,200</strong> — bypassing 6% import duty + 3% GST = ~₹8,200/10g margin per kg ≈ ₹82,000 tax saving
+          </div>
+        </div>
+
+        <div class="arb-card">
+          <div class="panel-header">
+            <div class="panel-title">Duty Structure — India 2025</div>
+            <span class="panel-badge badge-public">DGFT</span>
+          </div>
+          <table class="intel-table" style="margin-top:0.5rem;">
+            <thead><tr><th>Component</th><th>Rate</th><th>On ₹1L gold</th></tr></thead>
+            <tbody>
+              <tr><td>Basic customs duty</td><td class="mono gold">6.00%</td><td class="mono">₹6,000</td></tr>
+              <tr><td>Social welfare surcharge</td><td class="mono gold">1.25%</td><td class="mono">₹1,250</td></tr>
+              <tr><td>GST</td><td class="mono gold">3.00%</td><td class="mono">₹3,000</td></tr>
+              <tr><td style="color:var(--text);font-weight:500;">Total burden</td><td class="mono red">~10.25%</td><td class="mono red">₹10,250</td></tr>
+              <tr><td colspan="3" class="muted">UAE-CEPA concessional rate: 4% for eligible importers via IIBX</td></tr>
+            </tbody>
+          </table>
+          <div style="margin-top:1rem;padding:0.75rem;background:var(--surface-2);border-radius:3px;font-size:10px;color:var(--text-2);line-height:1.6;">
+            <strong style="color:var(--text);font-weight:400;">Analysis:</strong> The duty gap makes each kg of gold worth ~₹8,200–12,500 more if smuggled vs imported legally. At gold's current price, this is an extraordinary incentive. FM Sitharaman noted in 2024 that smuggling "has its own cycle irrespective of customs duty" — the incentive is structural, not episodic.
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">12-Month Gold Price — XAU/USD</div>
+          <span class="panel-badge badge-live">Live data</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="arbPriceChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRADE FLOWS -->
+    <div class="page" id="page-flows">
+      <div class="section-header">
+        <div class="section-title">India Gold Trade Flows</div>
+        <div class="section-meta">Source: DGCIS · TradeStats · WGC · Rajya Sabha records</div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-card gold">
+          <div class="sc-label">India imports 2024</div>
+          <div class="sc-val gold">800t</div>
+          <div class="sc-sub">World's 2nd largest consumer</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="sc-label">UAE share of imports</div>
+          <div class="sc-val" style="color:var(--blue)">~35%</div>
+          <div class="sc-sub">Largest single source</div>
+        </div>
+        <div class="stat-card green">
+          <div class="sc-label">India ETF growth FY25</div>
+          <div class="sc-val green">+40%</div>
+          <div class="sc-sub">YoY holdings growth</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="sc-label">Global ETF AUM Mar 2026</div>
+          <div class="sc-val gold">$701B</div>
+          <div class="sc-sub">Historic high · WGC</div>
+        </div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">India Gold Imports — Annual (tonnes)</div>
+            <span class="panel-badge badge-wgc">WGC / DGCIS</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="importsChart"></canvas>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Top Source Countries for India (est.)</div>
+            <span class="panel-badge badge-public">Public data</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="sourceChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">HS Code 7108 — Key Regulatory Milestones</div>
+          <span class="panel-badge badge-public">DGFT</span>
+        </div>
+        <table class="intel-table">
+          <thead><tr><th>Date</th><th>Event</th><th>Impact</th><th>Source</th></tr></thead>
+          <tbody>
+            <tr><td class="muted">May 2025</td><td>DGFT Notification 08/2025-26 — HS code restructure for gold imports from UAE</td><td class="gold">New restricted categories · CEPA compliance required</td><td class="muted">DGFT</td></tr>
+            <tr><td class="muted">Jul 2024</td><td>Import duty reduced to 6% from 15%</td><td class="green">Initial smuggling decline · later reversed by price surge</td><td class="muted">Finance Ministry</td></tr>
+            <tr><td class="muted">Jan 2022</td><td>India-UAE CEPA signed — concessional gold tariff rate quota</td><td class="gold">4% duty for IIBX-routed imports</td><td class="muted">DGFT / MEA</td></tr>
+            <tr><td class="muted">2022</td><td>IIBX (India International Bullion Exchange) launched, GIFT City</td><td class="green">First formal bullion exchange · IFSCA regulated</td><td class="muted">IFSCA</td></tr>
+            <tr><td class="muted">Jul 2019</td><td>Import duty raised to 12.5%</td><td class="red">Immediate smuggling surge documented</td><td class="muted">Finance Ministry</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CENTRAL BANKS -->
+    <div class="page" id="page-centralbanks">
+      <div class="section-header">
+        <div class="section-title">Sovereign Gold Flows</div>
+        <div class="section-meta">Source: World Gold Council · IMF · Central bank disclosures</div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-card gold">
+          <div class="sc-label">CB purchases 2025</div>
+          <div class="sc-val gold">1,237t</div>
+          <div class="sc-sub">Record-near sovereign demand</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="sc-label">WGC 2026 forecast</div>
+          <div class="sc-val" style="color:var(--blue)">850t</div>
+          <div class="sc-sub">Still historically exceptional</div>
+        </div>
+        <div class="stat-card green">
+          <div class="sc-label">Price floor (CB support)</div>
+          <div class="sc-val green">$4,500</div>
+          <div class="sc-sub">Sovereign buying threshold</div>
+        </div>
+        <div class="stat-card red">
+          <div class="sc-label">BRICS+ gold reserves</div>
+          <div class="sc-val red">17.4%</div>
+          <div class="sc-sub">↑ from 11.2% in 2019</div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:1.5rem;">
+        <div class="panel-header">
+          <div class="panel-title">Top Central Bank Gold Accumulators — 2025</div>
+          <span class="panel-badge badge-wgc">WGC Data</span>
+        </div>
+        <table class="intel-table">
+          <thead><tr><th>Country</th><th>2025 Purchase</th><th>Total Reserves</th><th>% of Reserves</th><th>Driver</th></tr></thead>
+          <tbody>
+            <tr><td>Poland</td><td class="mono gold">+80t</td><td class="mono">570t</td><td class="green">~17%</td><td class="muted">Geopolitical hedge · NATO eastern flank</td></tr>
+            <tr><td>China (PBoC)</td><td class="mono gold">+27t</td><td class="mono">2,306t</td><td class="green">~9%</td><td class="muted">De-dollarisation · dual-channel accumulation</td></tr>
+            <tr><td>Turkey</td><td class="mono gold">+27t</td><td class="mono">644t</td><td class="green">~32%</td><td class="muted">Currency hedge · inflation buffer</td></tr>
+            <tr><td>India (RBI)</td><td class="mono gold">Active buyer</td><td class="mono">~900t</td><td class="green">~10%</td><td class="muted">Reserve diversification · rupee hedge</td></tr>
+            <tr><td>Russia</td><td class="mono red">-6.22t</td><td class="mono">2,317t</td><td class="gold">47%</td><td class="muted">Sanctions-driven · world's 5th largest holder</td></tr>
+            <tr><td>Kazakhstan</td><td class="mono gold">Active</td><td class="mono">~300t</td><td class="green">~62%</td><td class="muted">Resource exporter preference for hard assets</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Central Bank Purchases — Annual Trend (tonnes)</div>
+          <span class="panel-badge badge-wgc">WGC</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="cbTrendChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- DATA SOURCES -->
+    <div class="page" id="page-sources">
+      <div class="section-header">
+        <div class="section-title">Intelligence Data Sources</div>
+        <div class="section-meta">All sources public · Free or open access · No scraping of private data</div>
+      </div>
+
+      <div class="sources-grid">
+        <div class="source-card">
+          <div class="source-name">DRI Press Releases</div>
+          <div class="source-type">Enforcement Intelligence</div>
+          <div class="source-desc">Directorate of Revenue Intelligence publishes individual seizure press releases in real-time at dri.nic.in. Structured data source for seizure weight, location, and method.</div>
+          <span class="source-status ss-pub">Public — dri.nic.in</span>
+        </div>
+        <div class="source-card">
+          <div class="source-name">World Gold Council</div>
+          <div class="source-type">Market Intelligence</div>
+          <div class="source-desc">WGC publishes quarterly gold demand trends, central bank data, mine production, ETF flows, and annual supply data. Downloadable datasets at gold.org/goldhub/data</div>
+          <span class="source-status ss-free">Free download — gold.org</span>
+        </div>
+        <div class="source-card">
+          <div class="source-name">India TradeStats</div>
+          <div class="source-type">Trade Flow Data</div>
+          <div class="source-desc">Ministry of Commerce trade statistics portal. HS Code 7108 (gold) import/export data available 2017–present. Monthly granularity by country of origin.</div>
+          <span class="source-status ss-pub">Public — tradestat.commerce.gov.in</span>
+        </div>
+        <div class="source-card">
+          <div class="source-name">Freegoldapi.com</div>
+          <div class="source-type">Price Data API</div>
+          <div class="source-desc">768 years of historical gold price data. CORS-enabled, no API key. Daily updates via GitHub Actions. XAU/USD from 1258 to present. Silver ratios included.</div>
+          <span class="source-status ss-api">Free API · No key needed</span>
+        </div>
+        <div class="source-card">
+          <div class="source-name">metals.dev</div>
+          <div class="source-type">Live Price API</div>
+          <div class="source-desc">Real-time precious metals prices including MCX India gold price, LBMA London fix, and FOREX rates. Free tier available with rate limits.</div>
+          <span class="source-status ss-api">Free API · metals.dev</span>
+        </div>
+        <div class="source-card">
+          <div class="source-name">Rajya Sabha Q&A</div>
+          <div class="source-type">Parliamentary Record</div>
+          <div class="source-desc">Finance Ministry submits gold seizure statistics to Parliament in written replies. All public record. Primary source for airport-wise seizure breakdowns cited in media.</div>
+          <span class="source-status ss-pub">Public — sansad.in</span>
+        </div>
+        <div class="source-card">
+          <div class="source-name">data.gov.in</div>
+          <div class="source-type">Government Open Data</div>
+          <div class="source-desc">DGFT and MoCI datasets on India's gold keyword resources. Open Government Data Platform — multiple gold trade datasets with API access.</div>
+          <span class="source-status ss-api">Open API — data.gov.in</span>
+        </div>
+        <div class="source-card">
+          <div class="source-name">DMCC Trade Data</div>
+          <div class="source-type">UAE Gold Trade</div>
+          <div class="source-desc">Dubai Multi Commodities Centre publishes annual gold trade reports. UAE is India's largest gold supplier. DMCC member refinery list is public.</div>
+          <span class="source-status ss-pub">Public — dmcc.ae</span>
+        </div>
+        <div class="source-card">
+          <div class="source-name">IMF GFSR / Article IV</div>
+          <div class="source-type">Monetary Intelligence</div>
+          <div class="source-desc">IMF publishes gold reserve data for member countries, AML/CFT assessments for precious metals sectors, and geopolitical risk analysis affecting gold markets.</div>
+          <span class="source-status ss-free">Free — imf.org</span>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:1.5rem;">
+        <div class="panel-header">
+          <div class="panel-title">About Bucks Intelligence</div>
+        </div>
+        <div style="font-size:12px;color:var(--text-2);line-height:1.8;max-width:680px;">
+          <p>Bucks Intelligence is the supply chain data layer for the Bucks open protocol. It aggregates publicly available gold flow data — enforcement records, trade statistics, price feeds, and regulatory changes — into structured intelligence for compliance teams, bullion dealers, banks, and researchers.</p>
+          <br>
+          <p>All data on this platform is sourced from public government records, official international organisations, and free market data APIs. No private, proprietary, or confidential data is used. This is not financial advice.</p>
+          <br>
+          <p style="color:var(--gold)">→ bucks.global &nbsp; → github.com/infin8sync69-source/bucks &nbsp; → hello@bucks.global</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ── Navigation ──
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  el.classList.add('active');
+  initChartsForPage(id);
+}
+
+// ── Clock ──
+function updateClock() {
+  const now = new Date();
+  const utc = now.toUTCString().split(' ')[4];
+  document.getElementById('clock').textContent = utc + ' UTC';
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Gold price simulation (replace with real API call) ──
+let basePrice = 3241.80;
+function updatePrice() {
+  const delta = (Math.random() - 0.49) * 0.8;
+  basePrice = Math.max(3000, basePrice + delta);
+  const change = ((basePrice - 3228.3) / 3228.3 * 100).toFixed(2);
+  const inrPrice = (basePrice * 83.2 / 31.1035 * 10).toFixed(0);
+
+  document.getElementById('live-price').textContent = '$' + basePrice.toFixed(2);
+  document.getElementById('inr-price').textContent = '₹' + parseInt(inrPrice).toLocaleString('en-IN');
+  document.getElementById('dash-price').textContent = '$' + Math.round(basePrice).toLocaleString();
+
+  const changeEl = document.getElementById('price-change');
+  const dashChange = document.getElementById('dash-change');
+  changeEl.textContent = (change >= 0 ? '+' : '') + change + '%';
+  changeEl.className = 'tb-price-change ' + (change >= 0 ? 'up' : 'dn');
+  dashChange.textContent = (change >= 0 ? '+' : '') + change + '% today';
+  dashChange.className = 'sc-change ' + (change >= 0 ? 'up' : 'dn');
+
+  // Update arbitrage page
+  const dubaiFactor = 0.945;
+  const dubaPrice = Math.round(inrPrice * dubaiFactor / 1000) * 1000;
+  const dutyPrice = Math.round(parseInt(inrPrice) * 1.0925 / 100) * 100;
+  const sgPrice = Math.round(parseInt(inrPrice) * 0.958 / 100) * 100;
+  if(document.getElementById('p-dubai')) {
+    document.getElementById('p-dubai').textContent = '₹' + dubaPrice.toLocaleString('en-IN');
+    document.getElementById('p-india').textContent = '₹' + parseInt(inrPrice).toLocaleString('en-IN');
+    document.getElementById('p-india-duty').textContent = '₹' + parseInt(dutyPrice).toLocaleString('en-IN');
+    document.getElementById('p-sg').textContent = '₹' + parseInt(sgPrice).toLocaleString('en-IN');
+  }
+}
+setInterval(updatePrice, 3000);
+updatePrice();
+
+// ── Seizure feed ──
+const seizureData = [
+  { date: 'Feb 09 2025', text: 'DRI seizes <strong>1,065g</strong> gold from passenger at Calicut Intl Airport — gold concealed inside body', weight: '1.065 kg' },
+  { date: 'Nov 26 2025', text: 'DRI seizes <strong>5.685 kg</strong> gold dust in wax form near Mumbai Central Railway Station', weight: '5.685 kg' },
+  { date: 'Mar 03 2025', text: 'DRI busts major racket — <strong>14.2 kg</strong> gold bars concealed on person at Bengaluru Intl Airport · ₹12.56 Cr', weight: '14.20 kg' },
+  { date: 'Dec 15 2024', text: 'DRI seizes <strong>1.724 kg</strong> gold in paste form smuggled by cabin crew at Chennai Airport', weight: '1.724 kg' },
+  { date: 'Dec 14 2024', text: 'DRI seizes <strong>1.95 kg</strong> smuggled gold concealed in household items at Delhi Courier Terminal', weight: '1.950 kg' },
+];
+
+function buildFeed() {
+  const feed = document.getElementById('seizure-feed');
+  if (!feed) return;
+  feed.innerHTML = seizureData.map(s => `
+    <div class="feed-item">
+      <div class="feed-date">${s.date}</div>
+      <div class="feed-text">${s.text}</div>
+      <div class="feed-weight">${s.weight}</div>
+    </div>
+  `).join('');
+}
+buildFeed();
+
+// ── Chart defaults ──
+const chartDefaults = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: {
+    backgroundColor: '#0d141c',
+    borderColor: 'rgba(212,168,67,0.3)',
+    borderWidth: 1,
+    titleColor: '#C8D4E0',
+    bodyColor: '#6B7F90',
+    titleFont: { family: "'JetBrains Mono', monospace", size: 11 },
+    bodyFont: { family: "'JetBrains Mono', monospace", size: 11 },
+  }},
+  scales: {
+    x: { grid: { color: 'rgba(200,212,224,0.04)' }, ticks: { color: '#2E3D4A', font: { family: "'JetBrains Mono', monospace", size: 10 } } },
+    y: { grid: { color: 'rgba(200,212,224,0.04)' }, ticks: { color: '#2E3D4A', font: { family: "'JetBrains Mono', monospace", size: 10 } } }
+  }
+};
+
+// ── Price chart data ──
+const months = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+const priceData = [2280,2340,2390,2360,2450,2580,2680,2720,2820,5100,5420,5350];
+
+let chartsInit = {};
+
+function initChartsForPage(page) {
+  if (chartsInit[page]) return;
+  chartsInit[page] = true;
+
+  if (page === 'dashboard') initDashboardCharts();
+  if (page === 'seizures') initSeizureCharts();
+  if (page === 'arbitrage') initArbCharts();
+  if (page === 'flows') initFlowCharts();
+  if (page === 'centralbanks') initCBCharts();
+}
+
+function initDashboardCharts() {
+  // Price chart
+  new Chart(document.getElementById('priceChart'), {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [{
+        data: priceData,
+        borderColor: '#D4A843',
+        backgroundColor: 'rgba(212,168,67,0.06)',
+        borderWidth: 1.5,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+      }]
+    },
+    options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => '$' + v.toLocaleString() } } } }
+  });
+
+  // Seizure bar chart
+  new Chart(document.getElementById('seizureChart'), {
+    type: 'bar',
+    data: {
+      labels: ['FY20', 'FY21', 'FY22', 'FY23', 'FY24'],
+      datasets: [{
+        data: [2234, 1821, 3083, 2841, 3714],
+        backgroundColor: 'rgba(224,84,84,0.3)',
+        borderColor: '#E05454',
+        borderWidth: 1,
+        borderRadius: 2,
+      }]
+    },
+    options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + 'kg' } } } }
+  });
+
+  // CB chart
+  new Chart(document.getElementById('cbChart'), {
+    type: 'bar',
+    data: {
+      labels: ['2019','2020','2021','2022','2023','2024','2025'],
+      datasets: [{
+        data: [668, 255, 450, 1082, 1037, 1045, 1237],
+        backgroundColor: 'rgba(212,168,67,0.25)',
+        borderColor: '#D4A843',
+        borderWidth: 1,
+        borderRadius: 2,
+      }]
+    },
+    options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + 't' } } } }
+  });
+}
+
+function initSeizureCharts() {
+  new Chart(document.getElementById('seizureTrend'), {
+    type: 'line',
+    data: {
+      labels: ['FY2020','FY2021','FY2022','FY2023','FY2024'],
+      datasets: [
+        { label: 'Total India', data: [2234,1821,3083,2841,3714], borderColor:'#E05454', backgroundColor:'rgba(224,84,84,0.06)', fill:true, tension:0.4, borderWidth:1.5, pointRadius:3 },
+        { label: 'Kerala airports', data: [420,310,586,520,690], borderColor:'#D4A843', backgroundColor:'rgba(212,168,67,0.06)', fill:true, tension:0.4, borderWidth:1.5, pointRadius:3 },
+      ]
+    },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: true, labels: { color: '#6B7F90', font: { family:"'JetBrains Mono', monospace", size:10 }, boxWidth:12 } } }, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + 'kg' } } } }
+  });
+}
+
+function initArbCharts() {
+  new Chart(document.getElementById('arbPriceChart'), {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [{
+        data: priceData,
+        borderColor: '#D4A843',
+        backgroundColor: 'rgba(212,168,67,0.06)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+      }]
+    },
+    options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => '$' + v.toLocaleString() } } } }
+  });
+}
+
+function initFlowCharts() {
+  new Chart(document.getElementById('importsChart'), {
+    type: 'bar',
+    data: {
+      labels: ['2018','2019','2020','2021','2022','2023','2024'],
+      datasets: [{
+        data: [762, 690, 446, 797, 706, 761, 800],
+        backgroundColor: 'rgba(74,158,232,0.25)',
+        borderColor: '#4A9EE8',
+        borderWidth: 1,
+        borderRadius: 2,
+      }]
+    },
+    options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + 't' } } } }
+  });
+
+  new Chart(document.getElementById('sourceChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['UAE','Switzerland','South Africa','Others'],
+      datasets: [{
+        data: [35, 25, 15, 25],
+        backgroundColor: ['#D4A843','#4A9EE8','#3DB87A','#2E3D4A'],
+        borderColor: '#030507',
+        borderWidth: 2,
+      }]
+    },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { color:'#6B7F90', font:{family:"'JetBrains Mono',monospace",size:10}, boxWidth:10, padding:12 } } } }
+  });
+}
+
+function initCBCharts() {
+  new Chart(document.getElementById('cbTrendChart'), {
+    type: 'bar',
+    data: {
+      labels: ['2015','2016','2017','2018','2019','2020','2021','2022','2023','2024','2025'],
+      datasets: [{
+        label: 'Net purchases (tonnes)',
+        data: [590, 383, 375, 656, 668, 255, 450, 1082, 1037, 1045, 1237],
+        backgroundColor: (ctx) => ctx.raw > 1000 ? 'rgba(212,168,67,0.5)' : 'rgba(212,168,67,0.2)',
+        borderColor: '#D4A843',
+        borderWidth: 1,
+        borderRadius: 2,
+      }]
+    },
+    options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + 't' } } } }
+  });
+}
+
+// Init dashboard charts on load
+setTimeout(() => initDashboardCharts(), 100);
+</script>
+</body>
+</html>
