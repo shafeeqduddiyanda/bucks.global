@@ -2,19 +2,18 @@
 
 Go to: https://github.com/shafeeqduddiyanda/bucks.global/settings/secrets/actions
 
-| Secret Name       | Description                        | Status        |
-|-------------------|------------------------------------|---------------|
-| FRED_API_KEY      | St. Louis Fed FRED API key         | ✓ Configured  |
-| METALS_API_KEY    | metals.dev API key                 | ✓ Configured  |
-| COMTRADE_API_KEY  | UN Comtrade subscription key       | ⚠ Pending     |
-| DATAGOV_API_KEY   | data.gov.in API key                | ✓ Configured  |
+| Secret Name                  | Description                          | Status        |
+|------------------------------|--------------------------------------|---------------|
+| FRED_API_KEY                 | St. Louis Fed FRED API key           | ✓ Configured  |
+| METALS_API_KEY               | metals.dev API key                   | ✓ Configured  |
+| COMTRADE_API_KEY             | UN Comtrade primary key              | ✓ Configured  |
+| COMTRADE_API_KEY_SECONDARY   | UN Comtrade secondary/fallback key   | ✓ Configured  |
+| DATAGOV_API_KEY              | data.gov.in API key                  | ✓ Configured  |
 
-## COMTRADE_API_KEY
+## Comtrade Key Fallback
 
-Requires a UN Comtrade subscription. Once you have the key:
-1. Go to the secrets page linked above
-2. Click "New repository secret"
-3. Name: `COMTRADE_API_KEY`, Value: your subscription key
+The sync script uses `COMTRADE_API_KEY` (primary) first. If it is not set,
+it automatically falls back to `COMTRADE_API_KEY_SECONDARY`.
 
 ## Running the workflow
 

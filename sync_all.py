@@ -9,7 +9,8 @@ from datetime import datetime, timedelta, timezone
 # ── API KEYS (set as GitHub Secrets, injected as env vars) ──
 FRED_KEY     = os.environ.get("FRED_API_KEY", "")
 METALS_KEY   = os.environ.get("METALS_API_KEY", "")
-COMTRADE_KEY = os.environ.get("COMTRADE_API_KEY", "")
+COMTRADE_KEY           = os.environ.get("COMTRADE_API_KEY", "")
+COMTRADE_KEY_SECONDARY = os.environ.get("COMTRADE_API_KEY_SECONDARY", "")
 DATAGOV_KEY  = os.environ.get("DATAGOV_API_KEY", "")
 
 os.makedirs("data", exist_ok=True)
@@ -128,11 +129,14 @@ def sync_fred():
 # ═══════════════════════════════════════
 def sync_comtrade():
     print("→ UN Comtrade HS 7108 trade flows...")
-    if not COMTRADE_KEY:
+    key = COMTRADE_KEY or COMTRADE_KEY_SECONDARY
+    if not key:
         print("  ✗ COMTRADE_API_KEY not set"); return
+    if not COMTRADE_KEY and COMTRADE_KEY_SECONDARY:
+        print("  ℹ Using secondary Comtrade key")
     try:
         # India gold imports (last available year)
-        headers = {"Ocp-Apim-Subscription-Key": COMTRADE_KEY}
+        headers = {"Ocp-Apim-Subscription-Key": key}
         url = "https://comtradeapi.un.org/data/v1/get/C/A/HS"
         params = {
             "reporterCode": "356",     # India
