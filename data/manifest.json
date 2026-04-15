@@ -1,0 +1,41 @@
+{
+  "last_sync": "2026-04-15T06:30:36.695105+00:00",
+  "version": "2.0",
+  "sources": [
+    {
+      "id": "gold_price",
+      "name": "gold-api.com",
+      "free": true
+    },
+    {
+      "id": "metals_prices",
+      "name": "metals.dev",
+      "free": true
+    },
+    {
+      "id": "fred_macro",
+      "name": "FRED \u2014 St. Louis Fed",
+      "free": true
+    },
+    {
+      "id": "comtrade_gold",
+      "name": "UN Comtrade HS 7108",
+      "free": true
+    },
+    {
+      "id": "datagov_gold",
+      "name": "data.gov.in DGFT",
+      "free": true
+    },
+    {
+      "id": "ofac_gold",
+      "name": "OFAC SDN \u2014 US Treasury",
+      "free": true
+    },
+    {
+      "id": "dri_seizures",
+      "name": "DRI \u2014 dri.nic.in",
+      "free": true
+    }
+  ]
+}
