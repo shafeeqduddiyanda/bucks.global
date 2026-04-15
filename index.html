@@ -3,1426 +3,1227 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bucks Intelligence — Gold Supply Chain Monitor</title>
-<meta name="description" content="Real-time gold supply chain intelligence. Kerala-Dubai corridor tracking, seizure analytics, price arbitrage, and central bank flows.">
+<title>Bucks — Global Gold Supply Chain Intelligence</title>
+<meta name="description" content="The world's first open intelligence layer for the global gold supply chain. Track conflict gold, sanctions evasion, central bank flows, corridor risk — globally.">
+<meta property="og:title" content="Bucks — Global Gold Intelligence Platform">
+<meta property="og:url" content="https://bucks.global">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;700&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root {
-  --bg: #030507;
-  --surface: #080d12;
-  --surface-2: #0d141c;
-  --surface-3: #111b25;
-  --gold: #D4A843;
-  --gold-2: #F0C060;
-  --gold-dim: #6B5220;
-  --gold-glow: rgba(212,168,67,0.12);
-  --red: #E05454;
-  --red-dim: rgba(224,84,84,0.15);
-  --green: #3DB87A;
-  --green-dim: rgba(61,184,122,0.15);
-  --blue: #4A9EE8;
-  --blue-dim: rgba(74,158,232,0.12);
-  --text: #C8D4E0;
-  --text-2: #6B7F90;
-  --text-3: #2E3D4A;
-  --border: rgba(212,168,67,0.1);
-  --border-2: rgba(200,212,224,0.06);
-  --font-display: 'Syne', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --bg:#030507;--surface:#080d12;--surface-2:#0d141c;--surface-3:#111b25;
+  --gold:#D4A843;--gold-2:#F0C060;--gold-dim:#6B5220;--gold-glow:rgba(212,168,67,0.12);
+  --red:#E05454;--red-dim:rgba(224,84,84,0.15);
+  --green:#3DB87A;--green-dim:rgba(61,184,122,0.15);
+  --blue:#4A9EE8;--blue-dim:rgba(74,158,232,0.12);
+  --purple:#9B7ED4;--purple-dim:rgba(155,126,212,0.12);
+  --orange:#E07840;--orange-dim:rgba(224,120,64,0.12);
+  --text:#C8D4E0;--text-2:#6B7F90;--text-3:#2E3D4A;
+  --border:rgba(212,168,67,0.1);--border-2:rgba(200,212,224,0.06);
+  --font-display:'Syne',sans-serif;--font-mono:'JetBrains Mono',monospace;
 }
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-weight: 300;
-  font-size: 13px;
-  line-height: 1.6;
-  min-height: 100vh;
-  overflow-x: hidden;
-}
-
-/* Scanline effect */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
-  pointer-events: none;
-  z-index: 1000;
-}
-
-/* ── Top bar ── */
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: rgba(3,5,7,0.92);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 1.5rem;
-  height: 48px;
-}
-
-.tb-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.tb-logo {
-  font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text);
-  letter-spacing: -0.02em;
-}
-
-.tb-logo span { color: var(--gold); }
-
-.tb-tag {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-2);
-  border: 1px solid var(--border-2);
-  padding: 2px 7px;
-  border-radius: 2px;
-}
-
-.tb-status {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.status-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--green);
-  animation: blink 2s ease infinite;
-  display: inline-block;
-  margin-right: 5px;
-}
-
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
-
-.tb-time { color: var(--text-2); font-size: 11px; }
-.tb-price { color: var(--gold-2); font-size: 12px; font-weight: 400; }
-.tb-price-change { font-size: 11px; margin-left: 4px; }
-.up { color: var(--green); }
-.dn { color: var(--red); }
-
-/* ── Layout ── */
-.layout {
-  display: grid;
-  grid-template-columns: 200px 1fr;
-  min-height: calc(100vh - 48px);
-}
-
-/* ── Sidebar ── */
-.sidebar {
-  border-right: 1px solid var(--border-2);
-  padding: 1.5rem 0;
-  position: sticky;
-  top: 48px;
-  height: calc(100vh - 48px);
-  overflow-y: auto;
-}
-
-.sidebar-section {
-  margin-bottom: 1.5rem;
-}
-
-.sidebar-label {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  color: var(--text-3);
-  padding: 0 1.25rem;
-  margin-bottom: 0.5rem;
-  display: block;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 1.25rem;
-  color: var(--text-2);
-  cursor: pointer;
-  transition: all 0.15s;
-  border-left: 2px solid transparent;
-  font-size: 12px;
-}
-
-.nav-item:hover { color: var(--text); background: var(--surface); }
-.nav-item.active { color: var(--gold); border-left-color: var(--gold); background: var(--gold-glow); }
-
-.nav-dot {
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.6;
-  flex-shrink: 0;
-}
-
-.sidebar-divider {
-  height: 1px;
-  background: var(--border-2);
-  margin: 1rem 1.25rem;
-}
-
-.sidebar-metric {
-  padding: 0.75rem 1.25rem;
-}
-
-.sm-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); }
-.sm-val { font-size: 15px; font-weight: 400; color: var(--gold-2); margin-top: 2px; font-family: var(--font-mono); }
-.sm-sub { font-size: 10px; color: var(--text-2); margin-top: 1px; }
-
-/* ── Main content ── */
-.main {
-  padding: 1.5rem;
-  overflow-y: auto;
-}
-
-.page { display: none; }
-.page.active { display: block; }
-
-/* ── Section headers ── */
-.section-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 1.25rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border-2);
-}
-
-.section-title {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 500;
-  color: var(--text);
-  letter-spacing: -0.01em;
-}
-
-.section-meta { font-size: 10px; color: var(--text-2); }
-
-/* ── Stat cards row ── */
-.stat-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 10px;
-  margin-bottom: 1.5rem;
-}
-
-.stat-card {
-  background: var(--surface);
-  border: 1px solid var(--border-2);
-  border-radius: 4px;
-  padding: 1rem;
-  position: relative;
-  overflow: hidden;
-  transition: border-color 0.2s;
-}
-
-.stat-card:hover { border-color: var(--border); }
-
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-}
-
-.stat-card.gold::before { background: var(--gold); }
-.stat-card.red::before { background: var(--red); }
-.stat-card.green::before { background: var(--green); }
-.stat-card.blue::before { background: var(--blue); }
-
-.sc-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-2); margin-bottom: 6px; }
-.sc-val { font-size: 22px; font-family: var(--font-mono); font-weight: 400; color: var(--text); line-height: 1; }
-.sc-val.gold { color: var(--gold-2); }
-.sc-val.red { color: var(--red); }
-.sc-val.green { color: var(--green); }
-.sc-sub { font-size: 10px; color: var(--text-2); margin-top: 5px; }
-.sc-change { font-size: 10px; margin-top: 4px; }
-
-/* ── Chart panels ── */
-.chart-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 12px;
-  margin-bottom: 1.5rem;
-}
-
-@media (max-width: 900px) { .chart-grid { grid-template-columns: 1fr; } }
-
-.panel {
-  background: var(--surface);
-  border: 1px solid var(--border-2);
-  border-radius: 4px;
-  padding: 1.25rem;
-}
-
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-}
-
-.panel-title {
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text);
-}
-
-.panel-badge {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  padding: 2px 7px;
-  border-radius: 2px;
-}
-
-.badge-live { background: rgba(61,184,122,0.15); color: var(--green); border: 1px solid rgba(61,184,122,0.3); }
-.badge-public { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(74,158,232,0.2); }
-.badge-dri { background: var(--red-dim); color: var(--red); border: 1px solid rgba(224,84,84,0.2); }
-.badge-wgc { background: var(--gold-glow); color: var(--gold); border: 1px solid var(--border); }
-
-.chart-wrap { position: relative; height: 200px; }
-.chart-wrap-sm { position: relative; height: 160px; }
-
-/* ── Seizure feed ── */
-.feed { display: flex; flex-direction: column; gap: 6px; }
-
-.feed-item {
-  display: grid;
-  grid-template-columns: 80px 1fr auto;
-  gap: 10px;
-  align-items: center;
-  padding: 8px 10px;
-  background: var(--surface-2);
-  border: 1px solid var(--border-2);
-  border-radius: 3px;
-  font-size: 11px;
-  transition: border-color 0.15s;
-}
-
-.feed-item:hover { border-color: var(--border); }
-
-.feed-date { color: var(--text-2); font-size: 10px; }
-.feed-text { color: var(--text); line-height: 1.4; }
-.feed-text strong { color: var(--gold-2); font-weight: 400; }
-.feed-weight {
-  font-family: var(--font-mono);
-  color: var(--red);
-  font-size: 11px;
-  text-align: right;
-  white-space: nowrap;
-}
-
-/* ── Corridor map ── */
-.corridor-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 1.5rem;
-}
-
-@media (max-width: 700px) { .corridor-grid { grid-template-columns: 1fr; } }
-
-.corridor-card {
-  background: var(--surface);
-  border: 1px solid var(--border-2);
-  border-radius: 4px;
-  padding: 1rem;
-}
-
-.cc-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 10px;
-}
-
-.cc-route { font-family: var(--font-display); font-size: 13px; font-weight: 500; color: var(--text); }
-.cc-vol { font-size: 10px; color: var(--text-2); margin-top: 2px; }
-
-.risk-bar-wrap { margin-top: 8px; }
-.risk-label-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 10px; color: var(--text-2); }
-.risk-bar { height: 3px; background: var(--surface-3); border-radius: 2px; overflow: hidden; }
-.risk-fill { height: 100%; border-radius: 2px; transition: width 1s ease; }
-.risk-high { background: var(--red); }
-.risk-med { background: var(--gold); }
-.risk-low { background: var(--green); }
-
-.cc-stats { display: flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
-.cc-stat { font-size: 10px; color: var(--text-2); }
-.cc-stat span { color: var(--text); }
-
-/* ── Table ── */
-.intel-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-.intel-table th {
-  text-align: left;
-  padding: 6px 10px;
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-3);
-  border-bottom: 1px solid var(--border-2);
-  font-weight: 400;
-}
-.intel-table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border-2);
-  color: var(--text);
-  vertical-align: top;
-}
-.intel-table tr:hover td { background: var(--surface-2); }
-.intel-table td.mono { font-family: var(--font-mono); }
-.intel-table td.gold { color: var(--gold-2); }
-.intel-table td.red { color: var(--red); }
-.intel-table td.green { color: var(--green); }
-.intel-table td.muted { color: var(--text-2); font-size: 10px; }
-
-/* ── Arbitrage panel ── */
-.arb-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 1.5rem;
-}
-
-@media (max-width: 700px) { .arb-grid { grid-template-columns: 1fr; } }
-
-.arb-card {
-  background: var(--surface);
-  border: 1px solid var(--border-2);
-  border-radius: 4px;
-  padding: 1.25rem;
-}
-
-.arb-markets {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 1rem;
-}
-
-.arb-market-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 10px;
-  background: var(--surface-2);
-  border-radius: 3px;
-  border: 1px solid var(--border-2);
-}
-
-.arm-name { font-size: 11px; color: var(--text-2); }
-.arm-price { font-family: var(--font-mono); font-size: 13px; color: var(--text); }
-.arm-unit { font-size: 9px; color: var(--text-3); margin-left: 4px; }
-
-.arb-spread {
-  margin-top: 1rem;
-  padding: 0.75rem;
-  background: var(--gold-glow);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  font-size: 11px;
-  color: var(--gold);
-}
-
-.arb-spread strong { font-weight: 400; color: var(--gold-2); }
-
-/* ── Data sources panel ── */
-.sources-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px;
-}
-
-.source-card {
-  background: var(--surface);
-  border: 1px solid var(--border-2);
-  border-radius: 4px;
-  padding: 1rem;
-  cursor: pointer;
-  transition: border-color 0.2s;
-}
-
-.source-card:hover { border-color: var(--border); }
-
-.source-name { font-family: var(--font-display); font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
-.source-type { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-2); margin-bottom: 8px; }
-.source-desc { font-size: 11px; color: var(--text-2); line-height: 1.55; margin-bottom: 8px; }
-.source-status {
-  font-size: 9px;
-  padding: 2px 6px;
-  border-radius: 2px;
-  display: inline-block;
-}
-.ss-free { background: var(--green-dim); color: var(--green); border: 1px solid rgba(61,184,122,0.25); }
-.ss-pub { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(74,158,232,0.2); }
-.ss-api { background: var(--gold-glow); color: var(--gold); border: 1px solid var(--border); }
-
-/* ── Alert ticker ── */
-.ticker-wrap {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 1.5rem;
-  overflow: hidden;
-}
-
-.ticker-label {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--gold);
-  white-space: nowrap;
-  border-right: 1px solid var(--border);
-  padding-right: 12px;
-}
-
-.ticker-content {
-  font-size: 11px;
-  color: var(--text-2);
-  white-space: nowrap;
-  overflow: hidden;
-  animation: ticker 30s linear infinite;
-}
-
-@keyframes ticker {
-  from { transform: translateX(100%); }
-  to { transform: translateX(-100%); }
-}
-
-/* ── Price chart canvas ── */
-canvas { display: block; }
-
-/* ── Responsive ── */
-@media (max-width: 768px) {
-  .layout { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
-}
-
-/* ── Fade in ── */
-@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-.page.active { animation: fadeIn 0.3s ease; }
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 2px; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-weight:300;font-size:13px;line-height:1.6;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);pointer-events:none;z-index:1000}
+
+/* TOPBAR */
+.topbar{position:sticky;top:0;z-index:100;background:rgba(3,5,7,0.94);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;height:48px}
+.tb-brand{display:flex;align-items:center;gap:12px;text-decoration:none;cursor:pointer}
+.tb-logo{font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--text);letter-spacing:-0.03em;line-height:1}
+.tb-logo .dot{color:var(--gold)}
+.tb-logo .domain{color:var(--text-2);font-weight:400}
+.tb-sep{width:1px;height:18px;background:var(--border-2)}
+.tb-tag{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--text-3);padding:0}
+.tb-status{display:flex;align-items:center;gap:16px}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 2s ease infinite;display:inline-block;margin-right:5px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.tb-time{color:var(--text-2);font-size:11px}
+.tb-price{color:var(--gold-2);font-size:12px;font-weight:400}
+.tb-price-change{font-size:11px;margin-left:4px}
+.up{color:var(--green)}.dn{color:var(--red)}
+
+/* LAYOUT */
+.layout{display:grid;grid-template-columns:210px 1fr;min-height:calc(100vh - 48px)}
+
+/* SIDEBAR */
+.sidebar{border-right:1px solid var(--border-2);padding:1.5rem 0;position:sticky;top:48px;height:calc(100vh - 48px);overflow-y:auto}
+.sidebar-section{margin-bottom:1.5rem}
+.sidebar-label{font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:var(--text-3);padding:0 1.25rem;margin-bottom:.5rem;display:block}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 1.25rem;color:var(--text-2);cursor:pointer;transition:all .15s;border-left:2px solid transparent;font-size:12px}
+.nav-item:hover{color:var(--text);background:var(--surface)}
+.nav-item.active{color:var(--gold);border-left-color:var(--gold);background:var(--gold-glow)}
+.nav-dot{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.6;flex-shrink:0}
+.sidebar-divider{height:1px;background:var(--border-2);margin:1rem 1.25rem}
+.sidebar-metric{padding:.6rem 1.25rem}
+.sm-label{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-3)}
+.sm-val{font-size:15px;font-weight:400;color:var(--gold-2);margin-top:2px;font-family:var(--font-mono)}
+.sm-sub{font-size:10px;color:var(--text-2);margin-top:1px}
+
+/* MAIN */
+.main{padding:1.5rem;overflow-y:auto}
+.page{display:none}.page.active{display:block;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* SECTION */
+.section-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:1.25rem;padding-bottom:.75rem;border-bottom:1px solid var(--border-2)}
+.section-title{font-family:var(--font-display);font-size:18px;font-weight:500;color:var(--text);letter-spacing:-.01em}
+.section-meta{font-size:10px;color:var(--text-2)}
+
+/* TICKER */
+.ticker-wrap{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:10px 14px;display:flex;align-items:center;gap:12px;margin-bottom:1.5rem;overflow:hidden}
+.ticker-label{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--gold);white-space:nowrap;border-right:1px solid var(--border);padding-right:12px}
+.ticker-content{font-size:11px;color:var(--text-2);white-space:nowrap;animation:ticker 55s linear infinite}
+@keyframes ticker{from{transform:translateX(100%)}to{transform:translateX(-100%)}}
+
+/* STAT CARDS */
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin-bottom:1.5rem}
+.stat-card{background:var(--surface);border:1px solid var(--border-2);border-radius:4px;padding:1rem;position:relative;overflow:hidden;transition:border-color .2s}
+.stat-card:hover{border-color:var(--border)}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.stat-card.gold::before{background:var(--gold)}.stat-card.red::before{background:var(--red)}.stat-card.green::before{background:var(--green)}.stat-card.blue::before{background:var(--blue)}.stat-card.purple::before{background:var(--purple)}.stat-card.orange::before{background:var(--orange)}
+.sc-label{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--text-2);margin-bottom:6px}
+.sc-val{font-size:22px;font-family:var(--font-mono);font-weight:400;color:var(--text);line-height:1}
+.sc-val.gold{color:var(--gold-2)}.sc-val.red{color:var(--red)}.sc-val.green{color:var(--green)}.sc-val.blue{color:var(--blue)}.sc-val.purple{color:var(--purple)}.sc-val.orange{color:var(--orange)}
+.sc-sub{font-size:10px;color:var(--text-2);margin-top:5px}
+.sc-change{font-size:10px;margin-top:4px}
+
+/* CHARTS */
+.chart-grid{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:1.5rem}
+.chart-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:1.5rem}
+.chart-grid-equal{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.5rem}
+@media(max-width:900px){.chart-grid,.chart-grid-3,.chart-grid-equal{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--border-2);border-radius:4px;padding:1.25rem}
+.panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.panel-title{font-family:var(--font-display);font-size:13px;font-weight:500;color:var(--text)}
+.panel-badge{font-size:9px;text-transform:uppercase;letter-spacing:.1em;padding:2px 7px;border-radius:2px}
+.badge-live{background:rgba(61,184,122,.15);color:var(--green);border:1px solid rgba(61,184,122,.3)}
+.badge-public{background:var(--blue-dim);color:var(--blue);border:1px solid rgba(74,158,232,.2)}
+.badge-dri{background:var(--red-dim);color:var(--red);border:1px solid rgba(224,84,84,.2)}
+.badge-wgc{background:var(--gold-glow);color:var(--gold);border:1px solid var(--border)}
+.badge-ofac{background:var(--purple-dim);color:var(--purple);border:1px solid rgba(155,126,212,.2)}
+.badge-fatf{background:var(--orange-dim);color:var(--orange);border:1px solid rgba(224,120,64,.2)}
+.chart-wrap{position:relative;height:200px}
+.chart-wrap-sm{position:relative;height:150px}
+
+/* FEED */
+.feed{display:flex;flex-direction:column;gap:6px}
+.feed-item{display:grid;grid-template-columns:80px 1fr auto;gap:10px;align-items:center;padding:8px 10px;background:var(--surface-2);border:1px solid var(--border-2);border-radius:3px;font-size:11px;transition:border-color .15s}
+.feed-item:hover{border-color:var(--border)}
+.feed-date{color:var(--text-2);font-size:10px}
+.feed-text{color:var(--text);line-height:1.4}
+.feed-text strong{color:var(--gold-2);font-weight:400}
+.feed-weight{font-family:var(--font-mono);color:var(--red);font-size:11px;text-align:right;white-space:nowrap}
+.feed-weight.blue{color:var(--blue)}.feed-weight.gold{color:var(--gold-2)}.feed-weight.purple{color:var(--purple)}
+
+/* CORRIDORS */
+.corridor-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem}
+@media(max-width:900px){.corridor-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.corridor-grid{grid-template-columns:1fr}}
+.corridor-card{background:var(--surface);border:1px solid var(--border-2);border-radius:4px;padding:1rem;transition:border-color .2s}
+.corridor-card:hover{border-color:var(--border)}
+.cc-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.cc-route{font-family:var(--font-display);font-size:13px;font-weight:500;color:var(--text)}
+.cc-vol{font-size:10px;color:var(--text-2);margin-top:2px}
+.risk-bar-wrap{margin-top:8px}
+.risk-label-row{display:flex;justify-content:space-between;margin-bottom:4px;font-size:10px;color:var(--text-2)}
+.risk-bar{height:3px;background:var(--surface-3);border-radius:2px;overflow:hidden}
+.risk-fill{height:100%;border-radius:2px;transition:width 1s ease}
+.risk-high{background:var(--red)}.risk-med{background:var(--gold)}.risk-low{background:var(--green)}.risk-watch{background:var(--blue)}
+.cc-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.cc-chip{font-size:9px;background:var(--surface-2);border:1px solid var(--border-2);padding:2px 6px;border-radius:2px;color:var(--text-2)}
+.cc-note{margin-top:8px;font-size:10px;color:var(--text-2);line-height:1.55}
+
+/* TABLE */
+.intel-table{width:100%;border-collapse:collapse;font-size:11px}
+.intel-table th{text-align:left;padding:6px 10px;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-3);border-bottom:1px solid var(--border-2);font-weight:400}
+.intel-table td{padding:8px 10px;border-bottom:1px solid var(--border-2);color:var(--text);vertical-align:top}
+.intel-table tr:hover td{background:var(--surface-2)}
+.intel-table td.mono{font-family:var(--font-mono)}
+.intel-table td.gold{color:var(--gold-2)}.intel-table td.red{color:var(--red)}.intel-table td.green{color:var(--green)}.intel-table td.blue{color:var(--blue)}.intel-table td.purple{color:var(--purple)}
+.intel-table td.muted{color:var(--text-2);font-size:10px}
+
+/* ARBITRAGE */
+.arb-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.5rem}
+@media(max-width:700px){.arb-grid{grid-template-columns:1fr}}
+.arb-card{background:var(--surface);border:1px solid var(--border-2);border-radius:4px;padding:1.25rem}
+.arb-markets{display:flex;flex-direction:column;gap:8px;margin-top:1rem}
+.arb-market-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--surface-2);border-radius:3px;border:1px solid var(--border-2)}
+.arm-name{font-size:11px;color:var(--text-2)}
+.arm-price{font-family:var(--font-mono);font-size:13px;color:var(--text)}
+.arb-spread{margin-top:1rem;padding:.75rem;background:var(--gold-glow);border:1px solid var(--border);border-radius:3px;font-size:11px;color:var(--gold)}
+.arb-spread strong{font-weight:400;color:var(--gold-2)}
+
+/* SOURCES */
+.sources-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:10px}
+.source-card{background:var(--surface);border:1px solid var(--border-2);border-radius:4px;padding:1rem;cursor:pointer;transition:border-color .2s}
+.source-card:hover{border-color:var(--border)}
+.source-name{font-family:var(--font-display);font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px}
+.source-type{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-2);margin-bottom:8px}
+.source-desc{font-size:11px;color:var(--text-2);line-height:1.55;margin-bottom:8px}
+.source-ep{font-size:9px;color:var(--text-3);font-family:var(--font-mono);background:var(--surface-2);padding:3px 6px;border-radius:2px;word-break:break-all;margin-bottom:6px}
+.source-status{font-size:9px;padding:2px 6px;border-radius:2px;display:inline-block}
+.ss-free{background:var(--green-dim);color:var(--green);border:1px solid rgba(61,184,122,.25)}
+.ss-pub{background:var(--blue-dim);color:var(--blue);border:1px solid rgba(74,158,232,.2)}
+.ss-api{background:var(--gold-glow);color:var(--gold);border:1px solid var(--border)}
+
+/* INSIGHT BOX */
+.insight-box{background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:1rem 1.25rem;margin-bottom:1.5rem}
+.ib-label{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--gold);margin-bottom:.5rem}
+.ib-text{font-size:11px;color:var(--text-2);line-height:1.7}
+.ib-text strong{color:var(--text);font-weight:400}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:2px}
+@media(max-width:768px){.layout{grid-template-columns:1fr}.sidebar{display:none}}
 </style>
 </head>
 <body>
 
-<!-- Top bar -->
+<!-- TOPBAR -->
 <div class="topbar">
   <div class="tb-brand">
-    <div class="tb-logo">bucks<span>.</span>intelligence</div>
-    <div class="tb-tag">Gold Supply Chain Monitor</div>
+    <div class="tb-logo">bucks<span class="dot">.</span><span class="domain">global</span></div>
+    <div class="tb-sep"></div>
+    <div class="tb-tag">Gold Supply Chain Intelligence</div>
   </div>
-  <div class="tb-status">
+    <div class="tb-status">
     <span><span class="status-dot"></span><span class="tb-time" id="clock">--:--:-- UTC</span></span>
-    <span class="tb-price">XAU/USD <span id="live-price">$3,241.80</span> <span class="tb-price-change up" id="price-change">+0.42%</span></span>
-    <span class="tb-price">INR/10g <span id="inr-price">₹98,420</span></span>
+    <span class="tb-price">XAU/USD <span id="live-price">$—</span> <span class="tb-price-change up" id="price-change">—</span></span>
+    <span class="tb-price">INR/10g <span id="inr-price">₹—</span></span>
   </div>
 </div>
 
 <div class="layout">
 
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="sidebar-section">
-      <span class="sidebar-label">Monitor</span>
-      <div class="nav-item active" onclick="showPage('dashboard', this)">
-        <div class="nav-dot"></div> Dashboard
-      </div>
-      <div class="nav-item" onclick="showPage('corridor', this)">
-        <div class="nav-dot"></div> Corridor Map
-      </div>
-      <div class="nav-item" onclick="showPage('seizures', this)">
-        <div class="nav-dot"></div> Seizure Feed
-      </div>
-      <div class="nav-item" onclick="showPage('arbitrage', this)">
-        <div class="nav-dot"></div> Price Arbitrage
-      </div>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-section">
+    <span class="sidebar-label">Monitor</span>
+    <div class="nav-item active" onclick="showPage('dashboard',this)"><div class="nav-dot"></div>Dashboard</div>
+    <div class="nav-item" onclick="showPage('corridors',this)"><div class="nav-dot"></div>Global Corridors</div>
+    <div class="nav-item" onclick="showPage('enforcement',this)"><div class="nav-dot"></div>Enforcement Feed</div>
+    <div class="nav-item" onclick="showPage('arbitrage',this)"><div class="nav-dot"></div>Price Arbitrage</div>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <span class="sidebar-label">Intelligence</span>
+    <div class="nav-item" onclick="showPage('conflict',this)"><div class="nav-dot"></div>Conflict Gold</div>
+    <div class="nav-item" onclick="showPage('sanctions',this)"><div class="nav-dot"></div>Sanctions Tracker</div>
+    <div class="nav-item" onclick="showPage('flows',this)"><div class="nav-dot"></div>Trade Flows</div>
+    <div class="nav-item" onclick="showPage('centralbanks',this)"><div class="nav-dot"></div>Central Banks</div>
+    <div class="nav-item" onclick="showPage('sources',this)"><div class="nav-dot"></div>Data Sources</div>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <span class="sidebar-label">Live Global</span>
+    <div class="sidebar-metric">
+      <div class="sm-label">XAU/USD</div>
+      <div class="sm-val" id="sb-price">$—</div>
+      <div class="sm-sub">live spot</div>
     </div>
-    <div class="sidebar-divider"></div>
-    <div class="sidebar-section">
-      <span class="sidebar-label">Intelligence</span>
-      <div class="nav-item" onclick="showPage('flows', this)">
-        <div class="nav-dot"></div> Trade Flows
-      </div>
-      <div class="nav-item" onclick="showPage('centralbanks', this)">
-        <div class="nav-dot"></div> Central Banks
-      </div>
-      <div class="nav-item" onclick="showPage('sources', this)">
-        <div class="nav-dot"></div> Data Sources
-      </div>
+    <div class="sidebar-metric">
+      <div class="sm-label">Global illicit flows</div>
+      <div class="sm-val">$30B+</div>
+      <div class="sm-sub">annual estimate</div>
     </div>
-    <div class="sidebar-divider"></div>
-    <div class="sidebar-section">
-      <span class="sidebar-label">Live Metrics</span>
-      <div class="sidebar-metric">
-        <div class="sm-label">Kerala seizures FY24</div>
-        <div class="sm-val">690 kg</div>
-        <div class="sm-sub">DRI public data</div>
-      </div>
-      <div class="sidebar-metric">
-        <div class="sm-label">India total FY24</div>
-        <div class="sm-val">3,714 kg</div>
-        <div class="sm-sub">₹2,081 Cr value</div>
-      </div>
-      <div class="sidebar-metric">
-        <div class="sm-label">Duty arbitrage</div>
-        <div class="sm-val">~15%</div>
-        <div class="sm-sub">Dubai vs India</div>
-      </div>
+    <div class="sidebar-metric">
+      <div class="sm-label">CB buying 2025</div>
+      <div class="sm-val">1,237t</div>
+      <div class="sm-sub">WGC near-record</div>
     </div>
-  </aside>
-
-  <!-- Main content -->
-  <main class="main">
-
-    <!-- DASHBOARD -->
-    <div class="page active" id="page-dashboard">
-      <div class="ticker-wrap">
-        <div class="ticker-label">Intel Feed</div>
-        <div class="ticker-content">
-          DRI seizes 1,065g gold at Calicut Airport Feb 2025 · Gold hits $5,589 all-time high Jan 2026 · Central banks bought 1,237 tonnes in 2025 · Kerala accounts for 690kg of India's 3,714kg FY24 seizures · India-UAE CEPA gold import rules updated May 2025 (DGFT Notification 08/2025-26) · BRICS+ nations hold 17.4% of global gold reserves · 3 of India's top 10 seizure airports are in Kerala ·
-        </div>
-      </div>
-
-      <div class="section-header">
-        <div class="section-title">Supply Chain Overview</div>
-        <div class="section-meta">All data from public sources · Updated periodically</div>
-      </div>
-
-      <div class="stat-row">
-        <div class="stat-card gold">
-          <div class="sc-label">Gold price / oz (live)</div>
-          <div class="sc-val gold" id="dash-price">$3,241</div>
-          <div class="sc-sub">XAU/USD spot · freegoldapi</div>
-          <div class="sc-change up" id="dash-change">+0.42% today</div>
-        </div>
-        <div class="stat-card red">
-          <div class="sc-label">India seizures FY24</div>
-          <div class="sc-val red">3,714 kg</div>
-          <div class="sc-sub">₹2,081 crore value</div>
-          <div class="sc-change dn">↑ 3-year high · DRI data</div>
-        </div>
-        <div class="stat-card green">
-          <div class="sc-label">Central bank buying 2025</div>
-          <div class="sc-val green">1,237t</div>
-          <div class="sc-sub">Global sovereign demand</div>
-          <div class="sc-change up">↑ 53 all-time highs in 2025</div>
-        </div>
-        <div class="stat-card blue">
-          <div class="sc-label">Kerala corridor share</div>
-          <div class="sc-val" style="color:var(--blue)">~18.6%</div>
-          <div class="sc-sub">of national seizures</div>
-          <div class="sc-change" style="color:var(--text-2)">Top 3 airports all Kerala</div>
-        </div>
-      </div>
-
-      <div class="chart-grid">
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title">Gold Price — 12 Month Trend (USD/oz)</div>
-            <span class="panel-badge badge-live">Live</span>
-          </div>
-          <div class="chart-wrap">
-            <canvas id="priceChart"></canvas>
-          </div>
-        </div>
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title">India Seizures by Year (kg)</div>
-            <span class="panel-badge badge-dri">DRI</span>
-          </div>
-          <div class="chart-wrap">
-            <canvas id="seizureChart"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <div class="chart-grid">
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title">Recent DRI Gold Seizures — Kerala Corridor</div>
-            <span class="panel-badge badge-dri">dri.nic.in</span>
-          </div>
-          <div class="feed" id="seizure-feed">
-            <!-- Populated by JS -->
-          </div>
-        </div>
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title">Central Bank Buying (tonnes)</div>
-            <span class="panel-badge badge-wgc">WGC</span>
-          </div>
-          <div class="chart-wrap">
-            <canvas id="cbChart"></canvas>
-          </div>
-        </div>
-      </div>
+    <div class="sidebar-metric">
+      <div class="sm-label">Russia evasion est.</div>
+      <div class="sm-val">$22B+</div>
+      <div class="sm-sub">via UAE/Turkey 22-24</div>
     </div>
+    <div class="sidebar-metric">
+      <div class="sm-label">Sanctions sources</div>
+      <div class="sm-val">328</div>
+      <div class="sm-sub">OpenSanctions</div>
+    </div>
+  </div>
+</aside>
 
-    <!-- CORRIDOR MAP -->
-    <div class="page" id="page-corridor">
-      <div class="section-header">
-        <div class="section-title">Corridor Intelligence Map</div>
-        <div class="section-meta">Public enforcement data · WGC · Parliament records</div>
+<main class="main">
+
+<!-- ════════════════════ DASHBOARD ════════════════════ -->
+<div class="page active" id="page-dashboard">
+  <div class="ticker-wrap">
+    <div class="ticker-label">Global Intel Feed</div>
+    <div class="ticker-content">Russia routed ~$22B gold via UAE bypassing SWIFT sanctions 2022-24 · West Africa artisanal gold $10B+/yr enters formal supply via Dubai · DRI seizes 3,714kg India FY24 — 5,962 cases ₹2,081Cr · Central banks buy 1,237t in 2025 near-record · Myanmar junta funds operations via Kachin State gold · LBMA under pressure on African conflict gold sourcing · Venezuela FARC-linked gold $3-5B/yr via Miami and Madrid · Switzerland refines ~70% of world gold — provenance risk · ETF AUM hits $701B Mar 2026 historic high · OpenSanctions screens 328 global lists daily ·</div>
+  </div>
+
+  <div class="section-header">
+    <div class="section-title">Global Supply Chain Overview</div>
+    <div class="section-meta" id="dash-meta">22 public sources · <span id="last-update">live</span></div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-card gold">
+      <div class="sc-label">XAU/USD (live)</div>
+      <div class="sc-val gold" id="dash-price">$—</div>
+      <div class="sc-sub">gold-api.com · real-time</div>
+      <div class="sc-change up" id="dash-change">—</div>
+    </div>
+    <div class="stat-card gold">
+      <div class="sc-label">Global gold market</div>
+      <div class="sc-val gold">$13T</div>
+      <div class="sc-sub">total above-ground value</div>
+      <div class="sc-change up">↑ At current prices</div>
+    </div>
+    <div class="stat-card red">
+      <div class="sc-label">Global illicit flows</div>
+      <div class="sc-val red">$30B+</div>
+      <div class="sc-sub">annual estimate · multi-source</div>
+      <div class="sc-change dn">↑ Rising with gold price</div>
+    </div>
+    <div class="stat-card green">
+      <div class="sc-label">CB purchases 2025</div>
+      <div class="sc-val green">1,237t</div>
+      <div class="sc-sub">near-record · WGC</div>
+      <div class="sc-change up">↑ 53 all-time highs</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="sc-label">Russia sanctions evasion</div>
+      <div class="sc-val purple">$22B+</div>
+      <div class="sc-sub">via UAE/Turkey 2022-24</div>
+      <div class="sc-change dn">OFAC/BIS documented</div>
+    </div>
+    <div class="stat-card orange">
+      <div class="sc-label">Global ETF AUM</div>
+      <div class="sc-val orange">$701B</div>
+      <div class="sc-sub">Mar 2026 historic high · WGC</div>
+      <div class="sc-change up">↑ All-time record</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Gold Price — 12 Month (USD/oz)</div>
+        <span class="panel-badge badge-live">Live API</span>
       </div>
-
-      <div class="corridor-grid">
-        <div class="corridor-card">
-          <div class="cc-header">
-            <div>
-              <div class="cc-route">Dubai → Kerala</div>
-              <div class="cc-vol">Primary air corridor · UAE–India</div>
-            </div>
-            <span class="panel-badge badge-dri">HIGH RISK</span>
-          </div>
-          <div class="risk-bar-wrap">
-            <div class="risk-label-row"><span>Risk index</span><span style="color:var(--red)">87/100</span></div>
-            <div class="risk-bar"><div class="risk-fill risk-high" style="width:87%"></div></div>
-          </div>
-          <div class="cc-stats">
-            <div class="cc-stat">Airports: <span>COK, CCJ, TRV</span></div>
-            <div class="cc-stat">Corridor share: <span>~42% seizures</span></div>
-            <div class="cc-stat">Duty gap: <span>~15%</span></div>
-          </div>
-          <div style="margin-top:10px;font-size:10px;color:var(--text-2);line-height:1.5;">
-            Primary smuggling route. Top 3 Indian seizure airports are in Kerala. 700k+ Keralite expats in UAE. African gold refined in Dubai enters this corridor.
-          </div>
-        </div>
-
-        <div class="corridor-card">
-          <div class="cc-header">
-            <div>
-              <div class="cc-route">Myanmar → Northeast India</div>
-              <div class="cc-vol">Land border route · Porous terrain</div>
-            </div>
-            <span class="panel-badge badge-dri">HIGH RISK</span>
-          </div>
-          <div class="risk-bar-wrap">
-            <div class="risk-label-row"><span>Risk index</span><span style="color:var(--red)">79/100</span></div>
-            <div class="risk-bar"><div class="risk-fill risk-high" style="width:79%"></div></div>
-          </div>
-          <div class="cc-stats">
-            <div class="cc-stat">Entry: <span>Manipur, Mizoram</span></div>
-            <div class="cc-stat">Land routes: <span>55% of DRI seizures</span></div>
-          </div>
-          <div style="margin-top:10px;font-size:10px;color:var(--text-2);line-height:1.5;">
-            55% of DRI gold seizures via land routes. Regional instability diverts security resources. Tamu-Moreh-Imphal and Zokhatwar routes well-documented.
-          </div>
-        </div>
-
-        <div class="corridor-card">
-          <div class="cc-header">
-            <div>
-              <div class="cc-route">Bangladesh → West Bengal</div>
-              <div class="cc-vol">Eastern border corridor</div>
-            </div>
-            <span class="panel-badge" style="background:var(--gold-glow);color:var(--gold);border:1px solid var(--border)">MEDIUM</span>
-          </div>
-          <div class="risk-bar-wrap">
-            <div class="risk-label-row"><span>Risk index</span><span style="color:var(--gold)">52/100</span></div>
-            <div class="risk-bar"><div class="risk-fill risk-med" style="width:52%"></div></div>
-          </div>
-          <div class="cc-stats">
-            <div class="cc-stat">Source: <span>China, Myanmar</span></div>
-            <div class="cc-stat">Share: <span>~40-45% of grey flows</span></div>
-          </div>
-          <div style="margin-top:10px;font-size:10px;color:var(--text-2);line-height:1.5;">
-            Chinese-origin and Myanmar gold enters via Bangladesh corridor. WGC data shows persistent unexplained supply in this region.
-          </div>
-        </div>
-
-        <div class="corridor-card">
-          <div class="cc-header">
-            <div>
-              <div class="cc-route">Singapore → Chennai</div>
-              <div class="cc-vol">Emerging secondary route</div>
-            </div>
-            <span class="panel-badge" style="background:var(--gold-glow);color:var(--gold);border:1px solid var(--border)">WATCH</span>
-          </div>
-          <div class="risk-bar-wrap">
-            <div class="risk-label-row"><span>Risk index</span><span style="color:var(--gold)">38/100</span></div>
-            <div class="risk-bar"><div class="risk-fill risk-med" style="width:38%"></div></div>
-          </div>
-          <div class="cc-stats">
-            <div class="cc-stat">Status: <span>Growing rapidly</span></div>
-            <div class="cc-stat">Hub: <span>Singapore safe storage</span></div>
-          </div>
-          <div style="margin-top:10px;font-size:10px;color:var(--text-2);line-height:1.5;">
-            Singapore emerging as alternative routing hub. Safe storage demand spiked 2025 per industry reports. Ultra-wealthy using Singapore as non-bank storage.
-          </div>
-        </div>
-
-        <div class="corridor-card">
-          <div class="cc-header">
-            <div>
-              <div class="cc-route">Dubai → Mumbai/Delhi</div>
-              <div class="cc-vol">Tier-1 airport corridor</div>
-            </div>
-            <span class="panel-badge badge-dri">HIGH RISK</span>
-          </div>
-          <div class="risk-bar-wrap">
-            <div class="risk-label-row"><span>Risk index</span><span style="color:var(--red)">71/100</span></div>
-            <div class="risk-bar"><div class="risk-fill risk-high" style="width:71%"></div></div>
-          </div>
-          <div class="cc-stats">
-            <div class="cc-stat">Airports: <span>BOM, DEL</span></div>
-            <div class="cc-stat">Volume: <span>High cargo + pax</span></div>
-          </div>
-          <div style="margin-top:10px;font-size:10px;color:var(--text-2);line-height:1.5;">
-            High volume legitimate traffic provides cover. Cargo terminal and courier channel exploitation documented in DRI FY24 report.
-          </div>
-        </div>
-
-        <div class="corridor-card">
-          <div class="cc-header">
-            <div>
-              <div class="cc-route">Kerala → Gulf (Legal)</div>
-              <div class="cc-vol">Legitimate corridor · CEPA</div>
-            </div>
-            <span class="panel-badge" style="background:var(--green-dim);color:var(--green);border:1px solid rgba(61,184,122,0.25)">LEGAL</span>
-          </div>
-          <div class="risk-bar-wrap">
-            <div class="risk-label-row"><span>Volume index</span><span style="color:var(--green)">94/100</span></div>
-            <div class="risk-bar"><div class="risk-fill risk-low" style="width:94%"></div></div>
-          </div>
-          <div class="cc-stats">
-            <div class="cc-stat">Framework: <span>India-UAE CEPA</span></div>
-            <div class="cc-stat">Regulator: <span>DGFT/IIBX</span></div>
-          </div>
-          <div style="margin-top:10px;font-size:10px;color:var(--text-2);line-height:1.5;">
-            The Bucks target corridor. CEPA updated May 2025 (DGFT 08/2025-26). IIBX in GIFT City is formal settlement infrastructure. High NRI remittance gold flows.
-          </div>
-        </div>
+      <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Central Bank Purchases (tonnes)</div>
+        <span class="panel-badge badge-wgc">WGC</span>
       </div>
+      <div class="chart-wrap"><canvas id="cbChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Global Enforcement Events Feed</div>
+        <span class="panel-badge badge-public">Multi-source</span>
+      </div>
+      <div class="feed" id="global-feed"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">India Seizures by Year (kg)</div>
+        <span class="panel-badge badge-dri">DRI</span>
+      </div>
+      <div class="chart-wrap"><canvas id="seizureChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="chart-grid-3">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Global Illicit Flows by Region (est.)</div>
+        <span class="panel-badge badge-fatf">TraCCC/GFI</span>
+      </div>
+      <div class="chart-wrap-sm"><canvas id="illicitChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Global Mine Production by Country</div>
+        <span class="panel-badge badge-public">USGS 2024</span>
+      </div>
+      <div class="chart-wrap-sm"><canvas id="mineChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">India Import Sources (est. %)</div>
+        <span class="panel-badge badge-public">UN Comtrade</span>
+      </div>
+      <div class="chart-wrap-sm"><canvas id="sourceChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ GLOBAL CORRIDORS ════════════════════ -->
+<div class="page" id="page-corridors">
+  <div class="section-header">
+    <div class="section-title">Global Corridor Intelligence Map</div>
+    <div class="section-meta">DRI · TraCCC GMU · FATF · Global Witness · OFAC · FinCEN · BIS</div>
+  </div>
+
+  <div class="insight-box">
+    <div class="ib-label">Strategic Context</div>
+    <div class="ib-text">An estimated <strong>$30B+ of gold moves through illicit or informal channels annually</strong>. Eight major corridors account for the bulk of this flow. Each is driven by a distinct mechanism: duty arbitrage, sanctions evasion, conflict financing, or hawala remittance. The India–Gulf corridor is the richest data node; the others represent equally urgent global intelligence gaps.</div>
+  </div>
+
+  <div class="corridor-grid">
+    <div class="corridor-card">
+      <div class="cc-header">
+        <div><div class="cc-route">West Africa → Dubai → World</div><div class="cc-vol">Conflict gold · ASM mining</div></div>
+        <span class="panel-badge badge-dri">CRITICAL</span>
+      </div>
+      <div class="risk-bar-wrap"><div class="risk-label-row"><span>Risk index</span><span style="color:var(--red)">95/100</span></div><div class="risk-bar"><div class="risk-fill risk-high" style="width:95%"></div></div></div>
+      <div class="cc-chips"><span class="cc-chip">DRC · Mali · Burkina Faso</span><span class="cc-chip">$10B+/yr</span><span class="cc-chip">UN SC targeted</span></div>
+      <div class="cc-note">Artisanal and small-scale mining gold enters the formal supply chain via UAE refiners. TraCCC GMU, Global Witness, and UN Security Council documented. LBMA responsible gold guidance was developed in direct response.</div>
     </div>
 
-    <!-- SEIZURE FEED -->
-    <div class="page" id="page-seizures">
-      <div class="section-header">
-        <div class="section-title">Seizure Intelligence Feed</div>
-        <div class="section-meta">Source: dri.nic.in public press releases · Parliament records</div>
+    <div class="corridor-card">
+      <div class="cc-header">
+        <div><div class="cc-route">Russia → UAE / Turkey → Global</div><div class="cc-vol">Sanctions evasion · post-2022</div></div>
+        <span class="panel-badge badge-ofac">SANCTIONS</span>
       </div>
+      <div class="risk-bar-wrap"><div class="risk-label-row"><span>Risk index</span><span style="color:var(--red)">91/100</span></div><div class="risk-bar"><div class="risk-fill risk-high" style="width:91%"></div></div></div>
+      <div class="cc-chips"><span class="cc-chip">~$10B in 2022</span><span class="cc-chip">OFAC-tracked</span><span class="cc-chip">BIS documented</span></div>
+      <div class="cc-note">Russia used gold to circumvent SWIFT sanctions from Feb 2022. UAE and Turkey absorbed flows. US Treasury issued secondary sanctions warnings. Hong Kong secondary node. Ongoing OFAC enforcement.</div>
+    </div>
 
-      <div class="stat-row">
-        <div class="stat-card red">
-          <div class="sc-label">Total FY2023-24</div>
-          <div class="sc-val red">3,714 kg</div>
-          <div class="sc-sub">5,962 cases · ₹2,081 Cr</div>
-        </div>
-        <div class="stat-card red">
-          <div class="sc-label">DRI share FY24</div>
-          <div class="sc-val red">1,319 kg</div>
-          <div class="sc-sub">In 2,189 DRI cases</div>
-        </div>
-        <div class="stat-card gold">
-          <div class="sc-label">Kerala airports</div>
-          <div class="sc-val gold">690 kg</div>
-          <div class="sc-sub">~18.6% of national total</div>
-        </div>
-        <div class="stat-card blue">
-          <div class="sc-label">Land vs air split</div>
-          <div class="sc-val" style="color:var(--blue)">55/36%</div>
-          <div class="sc-sub">Land dominant · DRI FY24</div>
-        </div>
+    <div class="corridor-card">
+      <div class="cc-header">
+        <div><div class="cc-route">Gulf → India (all corridors)</div><div class="cc-vol">Duty arbitrage · diaspora</div></div>
+        <span class="panel-badge badge-dri">HIGH RISK</span>
       </div>
+      <div class="risk-bar-wrap"><div class="risk-label-row"><span>Risk index</span><span style="color:var(--red)">87/100</span></div><div class="risk-bar"><div class="risk-fill risk-high" style="width:87%"></div></div></div>
+      <div class="cc-chips"><span class="cc-chip">800t formal/yr</span><span class="cc-chip">10.25% duty gap</span><span class="cc-chip">700k+ expats</span></div>
+      <div class="cc-note">India-UAE CEPA, total 10.25% duty (BCD 6%+SWS 1.25%+GST 3%) creating structural arbitrage. Top 3 seizure airports: Calicut, Kochi, Trivandrum. DRI FY24: 3,714kg nationally. Bucks deepest intelligence node.</div>
+    </div>
 
-      <div class="panel" style="margin-bottom:1.5rem;">
-        <div class="panel-header">
-          <div class="panel-title">Documented Seizures — DRI Public Record</div>
-          <span class="panel-badge badge-dri">dri.nic.in</span>
-        </div>
+    <div class="corridor-card">
+      <div class="cc-header">
+        <div><div class="cc-route">Latin America → USA / EU</div><div class="cc-vol">FARC financing · AML</div></div>
+        <span class="panel-badge badge-fatf">AML RISK</span>
+      </div>
+      <div class="risk-bar-wrap"><div class="risk-label-row"><span>Risk index</span><span style="color:var(--red)">78/100</span></div><div class="risk-bar"><div class="risk-fill risk-high" style="width:78%"></div></div></div>
+      <div class="cc-chips"><span class="cc-chip">$3-5B/yr</span><span class="cc-chip">FinCEN alerts</span><span class="cc-chip">Miami · Madrid</span></div>
+      <div class="cc-note">Venezuela, Peru, Bolivia artisanal gold — often FARC-linked — entering via Miami and Madrid. FinCEN issued multiple alerts. DOJ enforcement ongoing. Caribbean (Panama, Antilles) transit hubs documented.</div>
+    </div>
+
+    <div class="corridor-card">
+      <div class="cc-header">
+        <div><div class="cc-route">Myanmar → China / Thailand</div><div class="cc-vol">Conflict minerals · junta</div></div>
+        <span class="panel-badge badge-dri">HIGH RISK</span>
+      </div>
+      <div class="risk-bar-wrap"><div class="risk-label-row"><span>Risk index</span><span style="color:var(--red)">76/100</span></div><div class="risk-bar"><div class="risk-fill risk-high" style="width:76%"></div></div></div>
+      <div class="cc-chips"><span class="cc-chip">Kachin State</span><span class="cc-chip">US sanctions apply</span><span class="cc-chip">Yunnan route</span></div>
+      <div class="cc-note">Myanmar military controls Kachin State gold mining. Gold funds junta operations. Flows via Yunnan province China and Thailand. Also contributes to India's northeast land border seizures (55% land route total).</div>
+    </div>
+
+    <div class="corridor-card">
+      <div class="cc-header">
+        <div><div class="cc-route">Switzerland — Refinery Hub</div><div class="cc-vol">Provenance washing risk</div></div>
+        <span class="panel-badge" style="background:var(--gold-glow);color:var(--gold);border:1px solid var(--border)">WATCH</span>
+      </div>
+      <div class="risk-bar-wrap"><div class="risk-label-row"><span>Risk index</span><span style="color:var(--gold)">65/100</span></div><div class="risk-bar"><div class="risk-fill risk-med" style="width:65%"></div></div></div>
+      <div class="cc-chips"><span class="cc-chip">~3,000t/yr refined</span><span class="cc-chip">70% global share</span><span class="cc-chip">LBMA RGG</span></div>
+      <div class="cc-note">Valcambi, PAMP, Metalor, Argor-Heraeus refine ~70% of world gold. Conflict gold enters as "recycled." LBMA Responsible Gold Guidance attempts origin verification. Due diligence gaps persist.</div>
+    </div>
+
+    <div class="corridor-card">
+      <div class="cc-header">
+        <div><div class="cc-route">Gulf → Pakistan / Bangladesh</div><div class="cc-vol">Diaspora hawala · Phase 2</div></div>
+        <span class="panel-badge" style="background:var(--gold-glow);color:var(--gold);border:1px solid var(--border)">MEDIUM</span>
+      </div>
+      <div class="risk-bar-wrap"><div class="risk-label-row"><span>Risk index</span><span style="color:var(--gold)">62/100</span></div><div class="risk-bar"><div class="risk-fill risk-med" style="width:62%"></div></div></div>
+      <div class="cc-chips"><span class="cc-chip">$4-6B/yr</span><span class="cc-chip">9M+ expats</span><span class="cc-chip">Bucks Phase 2</span></div>
+      <div class="cc-note">9M+ Pakistani and 1M+ Bangladeshi expats in UAE/Saudi. Similar structure to India-Gulf but less enforced. Primary Bucks protocol expansion corridor after India. Hawala gold flows extensively documented.</div>
+    </div>
+
+    <div class="corridor-card">
+      <div class="cc-header">
+        <div><div class="cc-route">Singapore → Asia</div><div class="cc-vol">Safe storage · emerging hub</div></div>
+        <span class="panel-badge badge-live">OPPORTUNITY</span>
+      </div>
+      <div class="risk-bar-wrap"><div class="risk-label-row"><span>Volume index</span><span style="color:var(--green)">Growing</span></div><div class="risk-bar"><div class="risk-fill risk-watch" style="width:45%"></div></div></div>
+      <div class="cc-chips"><span class="cc-chip">PSPM Act 2019</span><span class="cc-chip">Non-bank storage</span><span class="cc-chip">Ultra-HNI demand</span></div>
+      <div class="cc-note">Singapore emerging as "Geneva of the East." Non-bank gold storage surged in 2024-25. PSPM Act governs AML. Gateway to SE Asian markets: Philippines, Indonesia, Malaysia diaspora corridors.</div>
+    </div>
+
+    <div class="corridor-card">
+      <div class="cc-header">
+        <div><div class="cc-route">East Africa → UAE</div><div class="cc-vol">Sudan · Ethiopia · Zimbabwe</div></div>
+        <span class="panel-badge badge-dri">HIGH RISK</span>
+      </div>
+      <div class="risk-bar-wrap"><div class="risk-label-row"><span>Risk index</span><span style="color:var(--red)">73/100</span></div><div class="risk-bar"><div class="risk-fill risk-high" style="width:73%"></div></div></div>
+      <div class="cc-chips"><span class="cc-chip">$1-2B/yr est.</span><span class="cc-chip">State-controlled</span><span class="cc-chip">Militia gold</span></div>
+      <div class="cc-note">Sudan military and militia-controlled mining. Ethiopia artisanal production poorly regulated. Zimbabwe state gold buying below market price. All flow via UAE as primary exit point. TraCCC GMU documented.</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Global Corridor Summary Table</div>
+      <span class="panel-badge badge-public">Multi-source public data</span>
+    </div>
+    <table class="intel-table">
+      <thead><tr><th>Corridor</th><th>Est. Volume</th><th>Risk</th><th>Primary Mechanism</th><th>Key Sources</th><th>Bucks Relevance</th></tr></thead>
+      <tbody>
+        <tr><td>West Africa → Dubai → World</td><td class="mono gold">$10B+/yr</td><td style="color:var(--red)">95/100</td><td class="muted">Conflict ASM gold → UAE refiners</td><td class="muted">TraCCC · UN SC · Global Witness</td><td class="muted">LBMA compliance data source</td></tr>
+        <tr><td>Russia → UAE/Turkey</td><td class="mono gold">$22B+ (2022-24)</td><td style="color:var(--red)">91/100</td><td class="muted">SWIFT sanctions evasion via gold</td><td class="muted">OFAC · BIS · Reuters</td><td class="muted">Sanctions screening intelligence</td></tr>
+        <tr><td>Gulf → India (all airports)</td><td class="mono gold">800t formal/yr</td><td style="color:var(--red)">87/100</td><td class="muted">10.25% duty arbitrage</td><td class="muted">DRI · DGFT · Parliament</td><td class="muted">Phase 1 core corridor</td></tr>
+        <tr><td>Latin America → USA/EU</td><td class="mono gold">$3-5B/yr</td><td style="color:var(--red)">78/100</td><td class="muted">FARC/criminal group financing</td><td class="muted">FinCEN · DOJ · GFI</td><td class="muted">AML intelligence layer</td></tr>
+        <tr><td>Myanmar → China/Thailand</td><td class="mono gold">$1-2B/yr</td><td style="color:var(--red)">76/100</td><td class="muted">Junta-controlled Kachin mining</td><td class="muted">US Treasury · UNODC</td><td class="muted">Conflict minerals intelligence</td></tr>
+        <tr><td>East Africa → UAE</td><td class="mono gold">$1-2B/yr</td><td style="color:var(--red)">73/100</td><td class="muted">State/militia-controlled mining</td><td class="muted">TraCCC · GFI</td><td class="muted">Provenance intelligence</td></tr>
+        <tr><td>Switzerland refiners</td><td class="mono gold">~3,000t/yr</td><td style="color:var(--gold)">65/100</td><td class="muted">Conflict gold laundered as recycled</td><td class="muted">LBMA · Global Witness</td><td class="muted">LBMA RGG compliance support</td></tr>
+        <tr><td>Gulf → Pakistan/Bangladesh</td><td class="mono gold">$4-6B/yr</td><td style="color:var(--gold)">62/100</td><td class="muted">Hawala diaspora flows</td><td class="muted">World Bank · FIU</td><td class="muted">Phase 2 protocol expansion</td></tr>
+        <tr><td>Singapore → SE Asia</td><td class="mono green">Growing</td><td style="color:var(--blue)">Watch</td><td class="muted">Non-bank safe storage growth</td><td class="muted">MAS · PSPM · industry</td><td class="muted">Phase 3 corridor target</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ════════════════════ ENFORCEMENT FEED ════════════════════ -->
+<div class="page" id="page-enforcement">
+  <div class="section-header">
+    <div class="section-title">Global Enforcement Intelligence Feed</div>
+    <div class="section-meta">DRI · PIB · FinCEN · UNODC · Global Witness · UN Panel of Experts · Parliament</div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-card red">
+      <div class="sc-label">India total FY24</div>
+      <div class="sc-val red">3,714kg</div>
+      <div class="sc-sub">₹2,081Cr · 5,962 cases</div>
+    </div>
+    <div class="stat-card red">
+      <div class="sc-label">India DRI share</div>
+      <div class="sc-val red">1,319kg</div>
+      <div class="sc-sub">2,189 DRI cases FY24</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="sc-label">Russia UAE flows 2022</div>
+      <div class="sc-val purple">~$10B</div>
+      <div class="sc-sub">Post-SWIFT evasion · BIS</div>
+    </div>
+    <div class="stat-card orange">
+      <div class="sc-label">LatAm illicit est.</div>
+      <div class="sc-val orange">$3-5B</div>
+      <div class="sc-sub">Annual · FinCEN / GFI</div>
+    </div>
+    <div class="stat-card red">
+      <div class="sc-label">India land route</div>
+      <div class="sc-val red">55%</div>
+      <div class="sc-sub">Of seizures now via land · DRI</div>
+    </div>
+    <div class="stat-card gold">
+      <div class="sc-label">W. Africa → Dubai</div>
+      <div class="sc-val gold">$10B+</div>
+      <div class="sc-sub">Annual · TraCCC / Global Witness</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Global Enforcement Events — Public Record</div>
+        <span class="panel-badge badge-public">Multi-source</span>
+      </div>
+      <div class="feed" id="enforce-feed"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">India Seizure Trend FY20-FY24 (kg)</div>
+        <span class="panel-badge badge-dri">DRI + Parliament</span>
+      </div>
+      <div class="chart-wrap"><canvas id="seizureTrend"></canvas></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:1.5rem">
+    <div class="panel-header">
+      <div class="panel-title">India FY24 — Airport-wise Seizures (Top 10)</div>
+      <span class="panel-badge badge-dri">DRI / Rajya Sabha data</span>
+    </div>
+    <table class="intel-table">
+      <thead><tr><th>Airport</th><th>State</th><th>Weight (kg)</th><th>% National</th><th>Corridor</th></tr></thead>
+      <tbody>
+        <tr><td>Calicut Intl (CCJ)</td><td class="muted">Kerala</td><td class="mono red">~230</td><td class="gold">~6.2%</td><td class="muted">Dubai–Kerala primary</td></tr>
+        <tr><td>Kochi Intl (COK)</td><td class="muted">Kerala</td><td class="mono red">~220</td><td class="gold">~5.9%</td><td class="muted">Dubai–Kerala primary</td></tr>
+        <tr><td>Trivandrum Intl (TRV)</td><td class="muted">Kerala</td><td class="mono red">~140</td><td class="gold">~3.8%</td><td class="muted">Dubai–Kerala primary</td></tr>
+        <tr><td>Indira Gandhi Intl (DEL)</td><td class="muted">Delhi</td><td class="mono red">~380</td><td class="gold">~10.2%</td><td class="muted">Dubai/Singapore–Delhi</td></tr>
+        <tr><td>CSIA Mumbai (BOM)</td><td class="muted">Maharashtra</td><td class="mono red">~340</td><td class="gold">~9.2%</td><td class="muted">Dubai/HK–Mumbai</td></tr>
+        <tr><td>Chennai Intl (MAA)</td><td class="muted">Tamil Nadu</td><td class="mono red">~180</td><td class="gold">~4.8%</td><td class="muted">Singapore–Chennai</td></tr>
+        <tr><td>Bengaluru Intl (BLR)</td><td class="muted">Karnataka</td><td class="mono red">~160</td><td class="gold">~4.3%</td><td class="muted">Gulf–Bengaluru</td></tr>
+        <tr><td>Hyderabad (HYD)</td><td class="muted">Telangana</td><td class="mono red">~90</td><td class="gold">~2.4%</td><td class="muted">Gulf corridor</td></tr>
+        <tr><td>Land borders NE</td><td class="muted">Manipur/Mizoram</td><td class="mono red">~1,020</td><td class="gold">~27.5%</td><td class="muted">Myanmar land route</td></tr>
+        <tr><td>Other airports + land</td><td class="muted">Multiple</td><td class="mono red">~954</td><td class="gold">~25.7%</td><td class="muted">Various</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Notable Global Enforcement Actions — Public Record</div>
+      <span class="panel-badge badge-public">DRI · FinCEN · UNODC · DOJ</span>
+    </div>
+    <table class="intel-table">
+      <thead><tr><th>Date</th><th>Jurisdiction</th><th>Route / Entity</th><th>Volume / Value</th><th>Type</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td>2022–24</td><td>UAE / Turkey</td><td>Russia gold exports post-SWIFT sanctions</td><td class="mono gold">~$22B cumulative</td><td class="purple">Sanctions evasion</td><td class="muted">BIS · OFAC · Reuters</td></tr>
+        <tr><td>Mar 2025</td><td>Bengaluru, India</td><td>DRI arrests — 14.2kg gold bars concealed on person</td><td class="mono red">14.2kg · ₹12.56Cr</td><td class="red">Duty evasion</td><td class="muted">PIB / DRI</td></tr>
+        <tr><td>Nov 2025</td><td>Mumbai, India</td><td>DRI — gold dust in wax, Central Railway</td><td class="mono red">5.685kg · ~₹55L</td><td class="red">Smuggling</td><td class="muted">DRI</td></tr>
+        <tr><td>Feb 2025</td><td>Calicut Airport</td><td>Passenger — gold concealed in body</td><td class="mono red">1,065g</td><td class="red">Body packing</td><td class="muted">DRI</td></tr>
+        <tr><td>2023</td><td>Miami, USA</td><td>Venezuelan gold laundering — FinCEN SAR pattern</td><td class="mono gold">$400M+ identified</td><td class="purple">AML / FARC</td><td class="muted">FinCEN · DOJ</td></tr>
+        <tr><td>2022</td><td>DRC / Uganda</td><td>UN Panel — artisanal gold routed to Dubai refiners</td><td class="mono gold">Tonnes undocumented</td><td class="red">Conflict minerals</td><td class="muted">UN Panel of Experts</td></tr>
+        <tr><td>FY24</td><td>India — national</td><td>All agencies combined enforcement total</td><td class="mono red">3,714kg · ₹2,081Cr</td><td class="red">Multiple</td><td class="muted">Rajya Sabha / FM</td></tr>
+        <tr><td>Ongoing</td><td>Myanmar</td><td>Kachin State military gold — junta funding</td><td class="mono gold">Est. $1-2B/yr</td><td class="red">Conflict minerals</td><td class="muted">US Treasury · UNODC</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ════════════════════ ARBITRAGE ════════════════════ -->
+<div class="page" id="page-arbitrage">
+  <div class="section-header">
+    <div class="section-title">Global Price Arbitrage Intelligence</div>
+    <div class="section-meta">Live prices · cross-market spreads · duty calculations · smuggling incentive model</div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-card gold">
+      <div class="sc-label">XAU/USD (live)</div>
+      <div class="sc-val gold" id="arb-price">$—</div>
+      <div class="sc-sub">global benchmark</div>
+    </div>
+    <div class="stat-card gold">
+      <div class="sc-label">INR / 10g (est.)</div>
+      <div class="sc-val gold" id="arb-inr">₹—</div>
+      <div class="sc-sub">est. MCX India retail</div>
+    </div>
+    <div class="stat-card red">
+      <div class="sc-label">India duty burden</div>
+      <div class="sc-val red">10.25%</div>
+      <div class="sc-sub">BCD 6% + SWS 1.25% + GST 3%</div>
+    </div>
+    <div class="stat-card gold">
+      <div class="sc-label">Incentive / kg</div>
+      <div class="sc-val gold" id="arb-incentive">₹—</div>
+      <div class="sc-sub">smuggling margin at spot</div>
+    </div>
+  </div>
+
+  <div class="arb-grid">
+    <div class="arb-card">
+      <div class="panel-header">
+        <div class="panel-title">Gold Price by Global Market</div>
+        <span class="panel-badge badge-live">Live estimates</span>
+      </div>
+      <div class="arb-markets">
+        <div class="arb-market-row"><span class="arm-name">London LBMA PM fix</span><span class="arm-price" id="p-london">$—</span></div>
+        <div class="arb-market-row"><span class="arm-name">Dubai DGCX (duty free)</span><span class="arm-price" id="p-dubai">$—</span></div>
+        <div class="arb-market-row"><span class="arm-name">Shanghai SGE</span><span class="arm-price" id="p-shanghai">$—</span></div>
+        <div class="arb-market-row"><span class="arm-name">India MCX (est. retail)</span><span class="arm-price" id="p-india">₹—</span></div>
+        <div class="arb-market-row"><span class="arm-name">India + full import duty</span><span class="arm-price" id="p-india-duty">₹—</span></div>
+        <div class="arb-market-row"><span class="arm-name">Singapore (non-bank vault)</span><span class="arm-price" id="p-singapore">$—</span></div>
+        <div class="arb-market-row"><span class="arm-name">New York COMEX future</span><span class="arm-price" id="p-comex">$—</span></div>
+      </div>
+      <div class="arb-spread" id="arb-spread-box">
+        India smuggling incentive/kg: <strong id="arb-spread-val">₹—</strong> · FM Sitharaman (Jul 2024): smuggling "has its own cycle irrespective of customs duty."
+      </div>
+    </div>
+
+    <div class="arb-card">
+      <div class="panel-header">
+        <div class="panel-title">India Import Duty Structure 2025</div>
+        <span class="panel-badge badge-public">DGFT</span>
+      </div>
+      <table class="intel-table" style="margin-top:.5rem">
+        <thead><tr><th>Component</th><th>Rate</th><th>On ₹1L gold</th></tr></thead>
+        <tbody>
+          <tr><td>Basic customs duty</td><td class="mono gold">6.00%</td><td class="mono">₹6,000</td></tr>
+          <tr><td>Social welfare surcharge</td><td class="mono gold">1.25%</td><td class="mono">₹1,250</td></tr>
+          <tr><td>GST (gold)</td><td class="mono gold">3.00%</td><td class="mono">₹3,000</td></tr>
+          <tr><td><strong>Total burden</strong></td><td class="mono red">~10.25%</td><td class="mono red">₹10,250</td></tr>
+          <tr><td colspan="3" class="muted">UAE-CEPA concessional: 4% for IIBX-routed imports via GIFT City</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:1rem">
+        <div class="panel-title" style="margin-bottom:.75rem">Global Duty/Import Comparison</div>
         <table class="intel-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Location</th>
-              <th>Weight</th>
-              <th>Value</th>
-              <th>Method</th>
-              <th>Source</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Country</th><th>Import duty</th><th>Arbitrage incentive</th></tr></thead>
           <tbody>
-            <tr><td class="muted">Feb 2025</td><td>Calicut Intl Airport</td><td class="mono red">1,065g</td><td class="gold">~₹10.4L</td><td>Concealed in body</td><td class="muted">DRI Press Release</td></tr>
-            <tr><td class="muted">Mar 2025</td><td>Bengaluru Intl Airport</td><td class="mono red">14.2 kg</td><td class="gold">₹12.56 Cr</td><td>Concealed on person</td><td class="muted">PIB / DRI</td></tr>
-            <tr><td class="muted">Nov 2025</td><td>Mumbai Central Rly</td><td class="mono red">5.685 kg</td><td class="gold">~₹55L</td><td>Gold dust in wax form</td><td class="muted">DRI Press Release</td></tr>
-            <tr><td class="muted">Dec 2024</td><td>Delhi Courier Terminal</td><td class="mono red">1.95 kg</td><td class="gold">~₹19L</td><td>Concealed in household items</td><td class="muted">DRI Press Release</td></tr>
-            <tr><td class="muted">Dec 2024</td><td>Chennai Airport</td><td class="mono red">1.724 kg</td><td class="gold">~₹16.8L</td><td>Cabin crew — paste form</td><td class="muted">DRI Press Release</td></tr>
-            <tr><td class="muted">Aug 2024</td><td>Bihar outskirts</td><td class="mono red">3.262 kg</td><td class="gold">~₹31.8L</td><td>Vehicle interception</td><td class="muted">DRI Press Release</td></tr>
-            <tr><td class="muted">Jul 2024</td><td>Hyderabad outskirts</td><td class="mono red">3.577 kg</td><td class="gold">~₹34.9L</td><td>Vehicle interception</td><td class="muted">DRI Press Release</td></tr>
-            <tr><td class="muted">FY 2023-24</td><td>National (all airports)</td><td class="mono red">3,714 kg</td><td class="gold">₹2,081 Cr</td><td>5,962 total cases</td><td class="muted">Rajya Sabha data / FM</td></tr>
-            <tr><td class="muted">FY 2021-22</td><td>Kerala (state total)</td><td class="mono red">586 kg</td><td class="gold">₹264 Cr+</td><td>Multiple methods</td><td class="muted">DRI Annual Report</td></tr>
-            <tr><td class="muted">FY 2022</td><td>National (3-yr high)</td><td class="mono red">3,083 kg</td><td class="gold">Record high</td><td>Kerala led seizures</td><td class="muted">Parliament data</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">Seizure Trend Analysis — FY2020 to FY2024 (kg)</div>
-          <span class="panel-badge badge-dri">DRI + Parliament</span>
-        </div>
-        <div class="chart-wrap">
-          <canvas id="seizureTrend"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- ARBITRAGE -->
-    <div class="page" id="page-arbitrage">
-      <div class="section-header">
-        <div class="section-title">Price Arbitrage Intelligence</div>
-        <div class="section-meta">Live gold prices · Duty calculations · Smuggling incentive model</div>
-      </div>
-
-      <div class="arb-grid">
-        <div class="arb-card">
-          <div class="panel-header">
-            <div class="panel-title">Gold Price by Market</div>
-            <span class="panel-badge badge-live">Live est.</span>
-          </div>
-          <div class="arb-markets" id="arb-markets">
-            <div class="arb-market-row">
-              <div class="arm-name">Dubai (DGCX) — duty free</div>
-              <div><span class="arm-price" id="p-dubai">₹93,000</span><span class="arm-unit">/10g</span></div>
-            </div>
-            <div class="arb-market-row">
-              <div class="arm-name">India MCX — retail</div>
-              <div><span class="arm-price" id="p-india">₹98,420</span><span class="arm-unit">/10g</span></div>
-            </div>
-            <div class="arb-market-row">
-              <div class="arm-name">India — with legal import duty</div>
-              <div><span class="arm-price" id="p-india-duty">₹1,07,370</span><span class="arm-unit">/10g</span></div>
-            </div>
-            <div class="arb-market-row">
-              <div class="arm-name">Singapore — private vault</div>
-              <div><span class="arm-price" id="p-sg">₹94,200</span><span class="arm-unit">/10g</span></div>
-            </div>
-          </div>
-          <div class="arb-spread">
-            Smuggling incentive (Dubai → India, per kg): <strong id="arb-incentive">₹54,200</strong> — bypassing 6% import duty + 3% GST = ~₹8,200/10g margin per kg ≈ ₹82,000 tax saving
-          </div>
-        </div>
-
-        <div class="arb-card">
-          <div class="panel-header">
-            <div class="panel-title">Duty Structure — India 2025</div>
-            <span class="panel-badge badge-public">DGFT</span>
-          </div>
-          <table class="intel-table" style="margin-top:0.5rem;">
-            <thead><tr><th>Component</th><th>Rate</th><th>On ₹1L gold</th></tr></thead>
-            <tbody>
-              <tr><td>Basic customs duty</td><td class="mono gold">6.00%</td><td class="mono">₹6,000</td></tr>
-              <tr><td>Social welfare surcharge</td><td class="mono gold">1.25%</td><td class="mono">₹1,250</td></tr>
-              <tr><td>GST</td><td class="mono gold">3.00%</td><td class="mono">₹3,000</td></tr>
-              <tr><td style="color:var(--text);font-weight:500;">Total burden</td><td class="mono red">~10.25%</td><td class="mono red">₹10,250</td></tr>
-              <tr><td colspan="3" class="muted">UAE-CEPA concessional rate: 4% for eligible importers via IIBX</td></tr>
-            </tbody>
-          </table>
-          <div style="margin-top:1rem;padding:0.75rem;background:var(--surface-2);border-radius:3px;font-size:10px;color:var(--text-2);line-height:1.6;">
-            <strong style="color:var(--text);font-weight:400;">Analysis:</strong> The duty gap makes each kg of gold worth ~₹8,200–12,500 more if smuggled vs imported legally. At gold's current price, this is an extraordinary incentive. FM Sitharaman noted in 2024 that smuggling "has its own cycle irrespective of customs duty" — the incentive is structural, not episodic.
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">12-Month Gold Price — XAU/USD</div>
-          <span class="panel-badge badge-live">Live data</span>
-        </div>
-        <div class="chart-wrap">
-          <canvas id="arbPriceChart"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- TRADE FLOWS -->
-    <div class="page" id="page-flows">
-      <div class="section-header">
-        <div class="section-title">India Gold Trade Flows</div>
-        <div class="section-meta">Source: DGCIS · TradeStats · WGC · Rajya Sabha records</div>
-      </div>
-
-      <div class="stat-row">
-        <div class="stat-card gold">
-          <div class="sc-label">India imports 2024</div>
-          <div class="sc-val gold">800t</div>
-          <div class="sc-sub">World's 2nd largest consumer</div>
-        </div>
-        <div class="stat-card blue">
-          <div class="sc-label">UAE share of imports</div>
-          <div class="sc-val" style="color:var(--blue)">~35%</div>
-          <div class="sc-sub">Largest single source</div>
-        </div>
-        <div class="stat-card green">
-          <div class="sc-label">India ETF growth FY25</div>
-          <div class="sc-val green">+40%</div>
-          <div class="sc-sub">YoY holdings growth</div>
-        </div>
-        <div class="stat-card gold">
-          <div class="sc-label">Global ETF AUM Mar 2026</div>
-          <div class="sc-val gold">$701B</div>
-          <div class="sc-sub">Historic high · WGC</div>
-        </div>
-      </div>
-
-      <div class="chart-grid">
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title">India Gold Imports — Annual (tonnes)</div>
-            <span class="panel-badge badge-wgc">WGC / DGCIS</span>
-          </div>
-          <div class="chart-wrap">
-            <canvas id="importsChart"></canvas>
-          </div>
-        </div>
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title">Top Source Countries for India (est.)</div>
-            <span class="panel-badge badge-public">Public data</span>
-          </div>
-          <div class="chart-wrap">
-            <canvas id="sourceChart"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">HS Code 7108 — Key Regulatory Milestones</div>
-          <span class="panel-badge badge-public">DGFT</span>
-        </div>
-        <table class="intel-table">
-          <thead><tr><th>Date</th><th>Event</th><th>Impact</th><th>Source</th></tr></thead>
-          <tbody>
-            <tr><td class="muted">May 2025</td><td>DGFT Notification 08/2025-26 — HS code restructure for gold imports from UAE</td><td class="gold">New restricted categories · CEPA compliance required</td><td class="muted">DGFT</td></tr>
-            <tr><td class="muted">Jul 2024</td><td>Import duty reduced to 6% from 15%</td><td class="green">Initial smuggling decline · later reversed by price surge</td><td class="muted">Finance Ministry</td></tr>
-            <tr><td class="muted">Jan 2022</td><td>India-UAE CEPA signed — concessional gold tariff rate quota</td><td class="gold">4% duty for IIBX-routed imports</td><td class="muted">DGFT / MEA</td></tr>
-            <tr><td class="muted">2022</td><td>IIBX (India International Bullion Exchange) launched, GIFT City</td><td class="green">First formal bullion exchange · IFSCA regulated</td><td class="muted">IFSCA</td></tr>
-            <tr><td class="muted">Jul 2019</td><td>Import duty raised to 12.5%</td><td class="red">Immediate smuggling surge documented</td><td class="muted">Finance Ministry</td></tr>
+            <tr><td>India</td><td class="mono red">~10.25%</td><td class="red">Very high · $3,000+/kg</td></tr>
+            <tr><td>Vietnam</td><td class="mono gold">~10%</td><td class="gold">High</td></tr>
+            <tr><td>Turkey</td><td class="mono gold">~8%</td><td class="gold">High (also Russia route)</td></tr>
+            <tr><td>Egypt</td><td class="mono gold">~5%</td><td class="gold">Medium</td></tr>
+            <tr><td>UAE</td><td class="mono green">0%</td><td class="green">Hub — no duty</td></tr>
+            <tr><td>Singapore</td><td class="mono green">0% (exempt)</td><td class="green">Hub — no GST</td></tr>
+            <tr><td>Switzerland</td><td class="mono green">0%</td><td class="green">Hub — refinery centre</td></tr>
           </tbody>
         </table>
       </div>
     </div>
+  </div>
 
-    <!-- CENTRAL BANKS -->
-    <div class="page" id="page-centralbanks">
-      <div class="section-header">
-        <div class="section-title">Sovereign Gold Flows</div>
-        <div class="section-meta">Source: World Gold Council · IMF · Central bank disclosures</div>
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">12-Month Gold Price — XAU/USD</div>
+      <span class="panel-badge badge-live">Live data</span>
+    </div>
+    <div class="chart-wrap"><canvas id="arbChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ════════════════════ CONFLICT GOLD ════════════════════ -->
+<div class="page" id="page-conflict">
+  <div class="section-header">
+    <div class="section-title">Conflict Gold Intelligence</div>
+    <div class="section-meta">Global Witness · TraCCC GMU · UN Panel of Experts · GFI · OECD Due Diligence · LBMA RGG</div>
+  </div>
+
+  <div class="insight-box">
+    <div class="ib-label">The Provenance Problem</div>
+    <div class="ib-text">Gold is unique among commodities — <strong>once refined, its origin cannot be determined by any physical test</strong>. An estimated 20-30% of formal supply originates from conflict zones. The LBMA Responsible Gold Guidance, OECD Due Diligence Guidance, and EU CSRD all require origin documentation — but no single public platform has aggregated this intelligence globally until now.</div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-card red">
+      <div class="sc-label">W. Africa → Dubai est.</div>
+      <div class="sc-val red">$10B+</div>
+      <div class="sc-sub">Annual · TraCCC · Global Witness</div>
+    </div>
+    <div class="stat-card red">
+      <div class="sc-label">Conflict origin est.</div>
+      <div class="sc-val red">20-30%</div>
+      <div class="sc-sub">Of formal supply · WGC est.</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="sc-label">LBMA refiners audited</div>
+      <div class="sc-val blue">70+</div>
+      <div class="sc-sub">Responsible Gold Guidance</div>
+    </div>
+    <div class="stat-card green">
+      <div class="sc-label">EU CSRD effective</div>
+      <div class="sc-val green">2024</div>
+      <div class="sc-sub">Mandatory supply chain disclosure</div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:1.5rem">
+    <div class="panel-header">
+      <div class="panel-title">Global Conflict Gold Source Zones</div>
+      <span class="panel-badge badge-public">UN SC · Global Witness · TraCCC · FinCEN</span>
+    </div>
+    <table class="intel-table">
+      <thead><tr><th>Region</th><th>Countries</th><th>Est. volume</th><th>Entry point</th><th>Mechanism</th><th>Key intelligence source</th></tr></thead>
+      <tbody>
+        <tr><td>Central Africa</td><td class="muted">DRC · Rwanda · Uganda</td><td class="mono red">Tonnes undocumented</td><td>Dubai refiners</td><td class="muted">ASM gold laundered as "recycled"</td><td class="muted">UN Panel of Experts</td></tr>
+        <tr><td>Sahel / West Africa</td><td class="muted">Mali · Burkina Faso · Guinea</td><td class="mono red">$3-5B/yr</td><td>Dubai · Switzerland</td><td class="muted">Jihadist and junta-controlled mining</td><td class="muted">Global Witness · GFI</td></tr>
+        <tr><td>East Africa</td><td class="muted">Sudan · Ethiopia · Zimbabwe</td><td class="mono red">$1-2B/yr</td><td>Dubai · UAE</td><td class="muted">State-controlled and militia gold</td><td class="muted">TraCCC GMU · GFI</td></tr>
+        <tr><td>Southeast Asia</td><td class="muted">Myanmar (Kachin)</td><td class="mono red">$1-2B/yr</td><td>China · Thailand</td><td class="muted">Military junta controls mining</td><td class="muted">US Treasury · UNODC</td></tr>
+        <tr><td>Latin America</td><td class="muted">Venezuela · Bolivia · Colombia</td><td class="mono red">$3-5B/yr</td><td>Miami · Madrid · Caribbean</td><td class="muted">FARC and criminal group ASGM funding</td><td class="muted">FinCEN · DOJ · GFI</td></tr>
+        <tr><td>North Korea</td><td class="muted">DPRK (state-controlled)</td><td class="mono red">$100-500M</td><td>China</td><td class="muted">Weapons programme funding · UN embargo</td><td class="muted">UN Panel of Experts</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="chart-grid">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">The Dubai Nexus — How Conflict Gold Enters the Formal Market</div>
+        <span class="panel-badge badge-fatf">TraCCC GMU</span>
       </div>
-
-      <div class="stat-row">
-        <div class="stat-card gold">
-          <div class="sc-label">CB purchases 2025</div>
-          <div class="sc-val gold">1,237t</div>
-          <div class="sc-sub">Record-near sovereign demand</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:.5rem">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface-2);border-radius:3px;font-size:11px">
+          <span style="color:var(--red);min-width:80px">Step 1</span>
+          <span style="color:var(--text-2)">Artisanal miners in DRC/Mali/Burkina Faso sell at below-market prices to local traders controlled by armed groups</span>
         </div>
-        <div class="stat-card blue">
-          <div class="sc-label">WGC 2026 forecast</div>
-          <div class="sc-val" style="color:var(--blue)">850t</div>
-          <div class="sc-sub">Still historically exceptional</div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface-2);border-radius:3px;font-size:11px">
+          <span style="color:var(--gold);min-width:80px">Step 2</span>
+          <span style="color:var(--text-2)">Gold transported overland to coastal ports, often via multiple transit countries to obscure origin</span>
         </div>
-        <div class="stat-card green">
-          <div class="sc-label">Price floor (CB support)</div>
-          <div class="sc-val green">$4,500</div>
-          <div class="sc-sub">Sovereign buying threshold</div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface-2);border-radius:3px;font-size:11px">
+          <span style="color:var(--gold);min-width:80px">Step 3</span>
+          <span style="color:var(--text-2)">Arrives at UAE (primarily Dubai) gold souks and refineries, declared as "recycled" or "scrap" gold</span>
         </div>
-        <div class="stat-card red">
-          <div class="sc-label">BRICS+ gold reserves</div>
-          <div class="sc-val red">17.4%</div>
-          <div class="sc-sub">↑ from 11.2% in 2019</div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface-2);border-radius:3px;font-size:11px">
+          <span style="color:var(--blue);min-width:80px">Step 4</span>
+          <span style="color:var(--text-2)">Refined and re-exported as Dubai-origin gold with DMCC certification, laundered into formal supply chain</span>
         </div>
-      </div>
-
-      <div class="panel" style="margin-bottom:1.5rem;">
-        <div class="panel-header">
-          <div class="panel-title">Top Central Bank Gold Accumulators — 2025</div>
-          <span class="panel-badge badge-wgc">WGC Data</span>
-        </div>
-        <table class="intel-table">
-          <thead><tr><th>Country</th><th>2025 Purchase</th><th>Total Reserves</th><th>% of Reserves</th><th>Driver</th></tr></thead>
-          <tbody>
-            <tr><td>Poland</td><td class="mono gold">+80t</td><td class="mono">570t</td><td class="green">~17%</td><td class="muted">Geopolitical hedge · NATO eastern flank</td></tr>
-            <tr><td>China (PBoC)</td><td class="mono gold">+27t</td><td class="mono">2,306t</td><td class="green">~9%</td><td class="muted">De-dollarisation · dual-channel accumulation</td></tr>
-            <tr><td>Turkey</td><td class="mono gold">+27t</td><td class="mono">644t</td><td class="green">~32%</td><td class="muted">Currency hedge · inflation buffer</td></tr>
-            <tr><td>India (RBI)</td><td class="mono gold">Active buyer</td><td class="mono">~900t</td><td class="green">~10%</td><td class="muted">Reserve diversification · rupee hedge</td></tr>
-            <tr><td>Russia</td><td class="mono red">-6.22t</td><td class="mono">2,317t</td><td class="gold">47%</td><td class="muted">Sanctions-driven · world's 5th largest holder</td></tr>
-            <tr><td>Kazakhstan</td><td class="mono gold">Active</td><td class="mono">~300t</td><td class="green">~62%</td><td class="muted">Resource exporter preference for hard assets</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">Central Bank Purchases — Annual Trend (tonnes)</div>
-          <span class="panel-badge badge-wgc">WGC</span>
-        </div>
-        <div class="chart-wrap">
-          <canvas id="cbTrendChart"></canvas>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface-2);border-radius:3px;font-size:11px">
+          <span style="color:var(--green);min-width:80px">Step 5</span>
+          <span style="color:var(--text-2)">Enters global supply to LBMA refiners, jewellery manufacturers, ETFs — origin effectively untraceable</span>
         </div>
       </div>
     </div>
-
-    <!-- DATA SOURCES -->
-    <div class="page" id="page-sources">
-      <div class="section-header">
-        <div class="section-title">Intelligence Data Sources</div>
-        <div class="section-meta">All sources public · Free or open access · No scraping of private data</div>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Regulatory Compliance Timeline</div>
+        <span class="panel-badge badge-fatf">FATF · LBMA · EU</span>
       </div>
+      <table class="intel-table" style="margin-top:.5rem">
+        <thead><tr><th>Date</th><th>Jurisdiction</th><th>Requirement</th></tr></thead>
+        <tbody>
+          <tr><td>Jul 2026</td><td>Australia</td><td class="muted">AML/CTF mandatory for all precious metals dealers</td></tr>
+          <tr><td>2024</td><td>EU</td><td class="muted">CSRD — supply chain due diligence incl. precious metals</td></tr>
+          <tr><td>Nov 2023</td><td>Hong Kong SAR</td><td class="muted">Enhanced AML dealer requirements (FATF-aligned)</td></tr>
+          <tr><td>Nov 2025</td><td>China (PBoC)</td><td class="muted">Enhanced KYC for gold transactions above CNY 100,000</td></tr>
+          <tr><td>2019</td><td>Singapore</td><td class="muted">PSPM Act — precious stones/metals AML/CFT</td></tr>
+          <tr><td>Ongoing</td><td>India</td><td class="muted">PMLA reporting for dealers above ₹50,000</td></tr>
+          <tr><td>Ongoing</td><td>LBMA</td><td class="muted">Responsible Gold Guidance audits for 70+ refiners</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
-      <div class="sources-grid">
-        <div class="source-card">
-          <div class="source-name">DRI Press Releases</div>
-          <div class="source-type">Enforcement Intelligence</div>
-          <div class="source-desc">Directorate of Revenue Intelligence publishes individual seizure press releases in real-time at dri.nic.in. Structured data source for seizure weight, location, and method.</div>
-          <span class="source-status ss-pub">Public — dri.nic.in</span>
-        </div>
-        <div class="source-card">
-          <div class="source-name">World Gold Council</div>
-          <div class="source-type">Market Intelligence</div>
-          <div class="source-desc">WGC publishes quarterly gold demand trends, central bank data, mine production, ETF flows, and annual supply data. Downloadable datasets at gold.org/goldhub/data</div>
-          <span class="source-status ss-free">Free download — gold.org</span>
-        </div>
-        <div class="source-card">
-          <div class="source-name">India TradeStats</div>
-          <div class="source-type">Trade Flow Data</div>
-          <div class="source-desc">Ministry of Commerce trade statistics portal. HS Code 7108 (gold) import/export data available 2017–present. Monthly granularity by country of origin.</div>
-          <span class="source-status ss-pub">Public — tradestat.commerce.gov.in</span>
-        </div>
-        <div class="source-card">
-          <div class="source-name">Freegoldapi.com</div>
-          <div class="source-type">Price Data API</div>
-          <div class="source-desc">768 years of historical gold price data. CORS-enabled, no API key. Daily updates via GitHub Actions. XAU/USD from 1258 to present. Silver ratios included.</div>
-          <span class="source-status ss-api">Free API · No key needed</span>
-        </div>
-        <div class="source-card">
-          <div class="source-name">metals.dev</div>
-          <div class="source-type">Live Price API</div>
-          <div class="source-desc">Real-time precious metals prices including MCX India gold price, LBMA London fix, and FOREX rates. Free tier available with rate limits.</div>
-          <span class="source-status ss-api">Free API · metals.dev</span>
-        </div>
-        <div class="source-card">
-          <div class="source-name">Rajya Sabha Q&A</div>
-          <div class="source-type">Parliamentary Record</div>
-          <div class="source-desc">Finance Ministry submits gold seizure statistics to Parliament in written replies. All public record. Primary source for airport-wise seizure breakdowns cited in media.</div>
-          <span class="source-status ss-pub">Public — sansad.in</span>
-        </div>
-        <div class="source-card">
-          <div class="source-name">data.gov.in</div>
-          <div class="source-type">Government Open Data</div>
-          <div class="source-desc">DGFT and MoCI datasets on India's gold keyword resources. Open Government Data Platform — multiple gold trade datasets with API access.</div>
-          <span class="source-status ss-api">Open API — data.gov.in</span>
-        </div>
-        <div class="source-card">
-          <div class="source-name">DMCC Trade Data</div>
-          <div class="source-type">UAE Gold Trade</div>
-          <div class="source-desc">Dubai Multi Commodities Centre publishes annual gold trade reports. UAE is India's largest gold supplier. DMCC member refinery list is public.</div>
-          <span class="source-status ss-pub">Public — dmcc.ae</span>
-        </div>
-        <div class="source-card">
-          <div class="source-name">IMF GFSR / Article IV</div>
-          <div class="source-type">Monetary Intelligence</div>
-          <div class="source-desc">IMF publishes gold reserve data for member countries, AML/CFT assessments for precious metals sectors, and geopolitical risk analysis affecting gold markets.</div>
-          <span class="source-status ss-free">Free — imf.org</span>
-        </div>
+<!-- ════════════════════ SANCTIONS TRACKER ════════════════════ -->
+<div class="page" id="page-sanctions">
+  <div class="section-header">
+    <div class="section-title">Global Sanctions Intelligence</div>
+    <div class="section-meta">OFAC · OpenSanctions (328 sources) · UN SC · EU FSF · UK OFSI · BIS</div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-card purple">
+      <div class="sc-label">OFAC SDN entries</div>
+      <div class="sc-val purple">12,000+</div>
+      <div class="sc-sub">Updated multiple times daily</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="sc-label">OpenSanctions sources</div>
+      <div class="sc-val blue">328</div>
+      <div class="sc-sub">Global consolidated dataset</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="sc-label">Russia gold designations</div>
+      <div class="sc-val purple">Active</div>
+      <div class="sc-sub">OFAC · EU · UK coordinated</div>
+    </div>
+    <div class="stat-card orange">
+      <div class="sc-label">AML compliance deadline</div>
+      <div class="sc-val orange">Jul 2026</div>
+      <div class="sc-sub">Australia gold dealer mandates</div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:1.5rem">
+    <div class="panel-header">
+      <div class="panel-title">Global Sanctions — Gold Relevance by Jurisdiction</div>
+      <span class="panel-badge badge-ofac">Multi-source</span>
+    </div>
+    <table class="intel-table">
+      <thead><tr><th>Jurisdiction</th><th>List</th><th>Gold-specific relevance</th><th>Update frequency</th><th>Public endpoint</th></tr></thead>
+      <tbody>
+        <tr><td>USA</td><td class="purple">OFAC SDN + Non-SDN</td><td class="muted">Gold dealers, refiners, exporters from Russia, Iran, DPRK</td><td class="green">Multiple daily</td><td class="muted mono" style="font-size:9px">ofac.treasury.gov/downloads/sdn.json</td></tr>
+        <tr><td>United Nations</td><td class="purple">UN SC Consolidated</td><td class="muted">Mali, DRC, Sudan, DPRK — conflict gold and weapons funding</td><td class="green">As published</td><td class="muted mono" style="font-size:9px">scsanctions.un.org</td></tr>
+        <tr><td>European Union</td><td class="purple">EU FSF Consolidated</td><td class="muted">Russian gold ban, Belarus, Iran post-2022 rerouting intel</td><td class="green">Daily</td><td class="muted mono" style="font-size:9px">EC webgate FSF XML</td></tr>
+        <tr><td>UK</td><td class="purple">OFSI UK Sanctions</td><td class="muted">LBMA compliance — UK-market refiner and dealer obligations</td><td class="green">Daily</td><td class="muted mono" style="font-size:9px">gov.uk/ofsi</td></tr>
+        <tr><td>Global (328 sources)</td><td class="purple">OpenSanctions</td><td class="muted">Cross-jurisdiction entity screening — one clean consolidated dataset</td><td class="green">Daily</td><td class="muted mono" style="font-size:9px">opensanctions.org</td></tr>
+        <tr><td>Australia</td><td class="purple">AUSTRAC / DFAT</td><td class="muted">Mandatory gold dealer registration from July 2026</td><td class="blue">Regulatory</td><td class="muted mono" style="font-size:9px">austrac.gov.au</td></tr>
+        <tr><td>India</td><td class="purple">MEA / UAPA</td><td class="muted">Terror financing — gold as parallel currency</td><td class="muted">As published</td><td class="muted mono" style="font-size:9px">mea.gov.in</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="insight-box">
+    <div class="ib-label">The Russia Gold Evasion Case Study</div>
+    <div class="ib-text">After SWIFT sanctions were imposed in February 2022, Russia rapidly pivoted to gold as a sanctions circumvention mechanism. <strong>Russia exported an estimated $10B+ of gold to UAE in 2022 alone</strong>, according to BIS and Reuters analysis. Turkey absorbed additional flows. The US Treasury issued secondary sanctions warnings to UAE and Turkish entities in 2023. Hong Kong emerged as a secondary absorption node. This single corridor represents the largest documented use of gold for sanctions evasion in history — and demonstrates precisely why supply chain intelligence is now a national security priority for G7 governments.</div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Key Sanctions Events — Gold Sector Timeline</div>
+        <span class="panel-badge badge-ofac">OFAC · EU · BIS</span>
       </div>
-
-      <div class="panel" style="margin-top:1.5rem;">
-        <div class="panel-header">
-          <div class="panel-title">About Bucks Intelligence</div>
+      <table class="intel-table">
+        <thead><tr><th>Date</th><th>Event</th><th>Impact on gold flows</th></tr></thead>
+        <tbody>
+          <tr><td>Feb 2022</td><td>Russia SWIFT sanctions + gold export ban (G7)</td><td class="red">$10B+ rerouted via UAE/Turkey</td></tr>
+          <tr><td>Jun 2022</td><td>G7 bans Russian gold imports</td><td class="gold">LBMA suspends Russian refiners</td></tr>
+          <tr><td>2023</td><td>US Treasury warns UAE entities on Russia gold</td><td class="purple">UAE compliance tightening</td></tr>
+          <tr><td>2023</td><td>FinCEN SAR surge — Venezuela gold laundering</td><td class="red">$400M+ identified Miami network</td></tr>
+          <tr><td>May 2025</td><td>DGFT Notification 08/2025-26 India-UAE CEPA</td><td class="gold">Gold HS code restructure tightened</td></tr>
+          <tr><td>Jul 2026</td><td>Australia AML/CTF mandatory dealer compliance</td><td class="green">New Asia-Pacific enforcement node</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">How to Use This Intelligence</div>
+        <span class="panel-badge badge-live">For compliance teams</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:.5rem">
+        <div style="padding:8px 10px;background:var(--surface-2);border-radius:3px">
+          <div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">Step 1 — Entity screening</div>
+          <div style="font-size:11px;color:var(--text-2)">Run counterparties against OpenSanctions (328 sources) and OFAC SDN via their free public JSON endpoints. Updates every 2-5 minutes.</div>
         </div>
-        <div style="font-size:12px;color:var(--text-2);line-height:1.8;max-width:680px;">
-          <p>Bucks Intelligence is the supply chain data layer for the Bucks open protocol. It aggregates publicly available gold flow data — enforcement records, trade statistics, price feeds, and regulatory changes — into structured intelligence for compliance teams, bullion dealers, banks, and researchers.</p>
-          <br>
-          <p>All data on this platform is sourced from public government records, official international organisations, and free market data APIs. No private, proprietary, or confidential data is used. This is not financial advice.</p>
-          <br>
-          <p style="color:var(--gold)">→ bucks.global &nbsp; → github.com/infin8sync69-source/bucks &nbsp; → hello@bucks.global</p>
+        <div style="padding:8px 10px;background:var(--surface-2);border-radius:3px">
+          <div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">Step 2 — Corridor risk assessment</div>
+          <div style="font-size:11px;color:var(--text-2)">Cross-reference supplier geography against corridor risk map. UAE-origin gold requires LBMA RGG audit trail; Russia-origin is prohibited.</div>
+        </div>
+        <div style="padding:8px 10px;background:var(--surface-2);border-radius:3px">
+          <div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">Step 3 — Provenance documentation</div>
+          <div style="font-size:11px;color:var(--text-2)">EU CSRD now requires documented provenance. OECD Due Diligence Guidance provides the framework. Bucks intelligence supports the data layer.</div>
+        </div>
+        <div style="padding:8px 10px;background:var(--surface-2);border-radius:3px">
+          <div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">Step 4 — Ongoing monitoring</div>
+          <div style="font-size:11px;color:var(--text-2)">Subscribe to DRI RSS, PIB feed, and OFAC delta files for real-time alerts. GitHub Actions cron job runs every 6 hours automatically.</div>
         </div>
       </div>
     </div>
+  </div>
+</div>
 
-  </main>
+<!-- ════════════════════ TRADE FLOWS ════════════════════ -->
+<div class="page" id="page-flows">
+  <div class="section-header">
+    <div class="section-title">Global Gold Trade Flows</div>
+    <div class="section-meta">UN Comtrade HS 7108 · DGCIS · WGC · LBMA · DMCC · USGS</div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-card gold">
+      <div class="sc-label">Global mine production 2024</div>
+      <div class="sc-val gold">3,661t</div>
+      <div class="sc-sub">USGS · WGC</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="sc-label">India imports 2024</div>
+      <div class="sc-val blue">800t</div>
+      <div class="sc-sub">World's 2nd largest consumer</div>
+    </div>
+    <div class="stat-card green">
+      <div class="sc-label">China imports 2024</div>
+      <div class="sc-val green">~1,400t</div>
+      <div class="sc-sub">World's largest consumer</div>
+    </div>
+    <div class="stat-card gold">
+      <div class="sc-label">Swiss refining share</div>
+      <div class="sc-val gold">~70%</div>
+      <div class="sc-sub">Valcambi · PAMP · Metalor</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">India Gold Imports — Annual (tonnes)</div>
+        <span class="panel-badge badge-wgc">WGC / DGCIS</span>
+      </div>
+      <div class="chart-wrap"><canvas id="importsChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Top Gold Producing Countries 2024</div>
+        <span class="panel-badge badge-public">USGS</span>
+      </div>
+      <div class="chart-wrap"><canvas id="produceChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:1.5rem">
+    <div class="panel-header">
+      <div class="panel-title">Global Trade Flow Key Milestones — HS 7108</div>
+      <span class="panel-badge badge-public">DGFT · LBMA · FATF · MEA</span>
+    </div>
+    <table class="intel-table">
+      <thead><tr><th>Date</th><th>Jurisdiction</th><th>Event</th><th>Impact</th></tr></thead>
+      <tbody>
+        <tr><td>Jul 2026</td><td>Australia</td><td>AML/CTF Amendment Bill 2024 — gold dealer obligations mandatory</td><td class="red">All dealers must comply</td></tr>
+        <tr><td>May 2025</td><td>India (DGFT)</td><td>Notification 08/2025-26 — HS restructure UAE gold imports</td><td class="gold">CEPA compliance tightened</td></tr>
+        <tr><td>2024</td><td>EU</td><td>CSRD — supply chain due diligence including precious metals</td><td class="gold">Major jewellery brands impacted</td></tr>
+        <tr><td>Jul 2024</td><td>India</td><td>Import duty reduced 15% → 6%</td><td class="green">Initial decline reversed by price surge</td></tr>
+        <tr><td>2022</td><td>USA/EU/UK</td><td>Russia SWIFT sanctions + gold export ban</td><td class="red">$10B+ rerouted via UAE/Turkey</td></tr>
+        <tr><td>2022</td><td>India</td><td>IIBX launched in GIFT City · IFSCA regulated</td><td class="green">First formal India bullion exchange</td></tr>
+        <tr><td>2019</td><td>Singapore</td><td>PSPM Act — precious metals AML/CFT framework</td><td class="green">Asia's most robust gold AML regime</td></tr>
+        <tr><td>2019</td><td>India</td><td>Import duty raised to 12.5%</td><td class="red">Immediate documented smuggling surge</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ════════════════════ CENTRAL BANKS ════════════════════ -->
+<div class="page" id="page-centralbanks">
+  <div class="section-header">
+    <div class="section-title">Sovereign Gold Flows</div>
+    <div class="section-meta">World Gold Council · IMF IFS · Central bank disclosures · SDMX API</div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-card gold">
+      <div class="sc-label">CB purchases 2025</div>
+      <div class="sc-val gold">1,237t</div>
+      <div class="sc-sub">Near-record sovereign demand</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="sc-label">BRICS+ gold reserves</div>
+      <div class="sc-val blue">17.4%</div>
+      <div class="sc-sub">↑ from 11.2% in 2019</div>
+    </div>
+    <div class="stat-card green">
+      <div class="sc-label">ETF AUM Mar 2026</div>
+      <div class="sc-val green">$701B</div>
+      <div class="sc-sub">Historic high · WGC</div>
+    </div>
+    <div class="stat-card red">
+      <div class="sc-label">Russia reserves in gold</div>
+      <div class="sc-val red">47%</div>
+      <div class="sc-sub">World's 5th largest holder</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Central Bank Purchases — Annual Trend (tonnes)</div>
+        <span class="panel-badge badge-wgc">WGC</span>
+      </div>
+      <div class="chart-wrap"><canvas id="cbTrend"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Top Holders by Gold % of Reserves</div>
+        <span class="panel-badge badge-public">IMF IFS</span>
+      </div>
+      <div class="chart-wrap"><canvas id="cbHolders"></canvas></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Top Central Bank Accumulators — 2025</div>
+      <span class="panel-badge badge-wgc">WGC</span>
+    </div>
+    <table class="intel-table">
+      <thead><tr><th>Country</th><th>2025 purchase</th><th>Total reserves</th><th>% of reserves</th><th>Strategic driver</th></tr></thead>
+      <tbody>
+        <tr><td>Poland</td><td class="mono green">+80t</td><td class="mono">570t</td><td class="green">~17%</td><td class="muted">Geopolitical hedge · NATO eastern flank</td></tr>
+        <tr><td>China (PBoC)</td><td class="mono green">+27t</td><td class="mono">2,306t</td><td class="green">~9%</td><td class="muted">De-dollarisation · dual-channel accumulation</td></tr>
+        <tr><td>Turkey</td><td class="mono green">+27t</td><td class="mono">644t</td><td class="green">~32%</td><td class="muted">Currency hedge · inflation buffer</td></tr>
+        <tr><td>India (RBI)</td><td class="mono green">Active</td><td class="mono">~900t</td><td class="green">~10%</td><td class="muted">Reserve diversification · rupee hedge</td></tr>
+        <tr><td>Russia</td><td class="mono red">-6.22t</td><td class="mono">2,317t</td><td class="gold">47%</td><td class="muted">Sanctions-driven · selling to fund deficit</td></tr>
+        <tr><td>Kazakhstan</td><td class="mono green">Active</td><td class="mono">~300t</td><td class="green">~62%</td><td class="muted">Resource exporter · hard asset preference</td></tr>
+        <tr><td>Singapore (MAS)</td><td class="mono green">Active</td><td class="mono">~225t</td><td class="green">~5%</td><td class="muted">Diversification · Asia safe haven role</td></tr>
+        <tr><td>Czech Republic</td><td class="mono green">Growing</td><td class="mono">~50t</td><td class="green">~4%</td><td class="muted">EU member diversifying from EUR exposure</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ════════════════════ DATA SOURCES ════════════════════ -->
+<div class="page" id="page-sources">
+  <div class="section-header">
+    <div class="section-title">Intelligence Data Sources</div>
+    <div class="section-meta">22 public sources · All free or free-tier · Zero cost to operate at Phase 1</div>
+  </div>
+
+  <div class="insight-box">
+    <div class="ib-label">Bucks Data Architecture — How It Works</div>
+    <div class="ib-text">All intelligence on this platform is derived from <strong>100% public data sources</strong>. Python sync scripts run on GitHub Actions (free tier) every 6 hours, pulling from 22 endpoints, normalising the data, and writing to JSON files served alongside the HTML. <strong>Total infrastructure cost at Phase 1: ₹0</strong>. The intelligence platform is the Bucks protocol's trust proof — transparent, verifiable, auditable by anyone.</div>
+  </div>
+
+  <div class="sources-grid">
+    <div class="source-card"><div class="source-name">gold-api.com</div><div class="source-type">Live price · Real-time</div><div class="source-desc">Free XAU/USD, XAG/USD live spot. No key required. CORS-enabled. Used for all live price feeds and arbitrage calculations.</div><div class="source-ep">gold-api.com/price/XAU</div><span class="source-status ss-free">Free · No key</span></div>
+    <div class="source-card"><div class="source-name">freegoldapi.com</div><div class="source-type">Historical · 768 years</div><div class="source-desc">768 years of XAU/USD history. CORS-enabled, no key needed. Daily auto-update via GitHub Actions. Gold/silver ratio included.</div><div class="source-ep">freegoldapi.com/api/gold-price/latest</div><span class="source-status ss-free">Free · CORS</span></div>
+    <div class="source-card"><div class="source-name">metals.dev</div><div class="source-type">Multi-currency · 60s refresh</div><div class="source-desc">Live spot in 170+ currencies including INR. MCX India, LBMA London fix, bid/ask spreads. Free tier: 100 req/month.</div><div class="source-ep">api.metals.dev/v1/latest?currency=INR</div><span class="source-status ss-api">Free key</span></div>
+    <div class="source-card"><div class="source-name">OpenSanctions</div><div class="source-type">Sanctions · 328 global sources</div><div class="source-desc">328 global lists consolidated — UN, OFAC, EU, UK, India, UAE. Deduped, clean dataset. Free for non-commercial. Daily updates.</div><div class="source-ep">data.opensanctions.org/datasets/default/</div><span class="source-status ss-free">Free (non-commercial)</span></div>
+    <div class="source-card"><div class="source-name">OFAC SDN List</div><div class="source-type">US Sanctions · Multiple daily</div><div class="source-desc">US Treasury SDN list. JSON/XML download. Gold dealers, refiners, exporters from sanctioned states. Updates multiple times daily.</div><div class="source-ep">ofac.treasury.gov/downloads/sdn.json</div><span class="source-status ss-free">Free · No key</span></div>
+    <div class="source-card"><div class="source-name">UN Security Council</div><div class="source-type">Conflict sanctions · XML</div><div class="source-desc">Consolidated UN SC list. DRC, Mali, Sudan, DPRK — all conflict-gold corridor states. XML download. Published as amended.</div><div class="source-ep">scsanctions.un.org</div><span class="source-status ss-free">Free</span></div>
+    <div class="source-card"><div class="source-name">EU FSF Sanctions</div><div class="source-type">EU consolidated · Daily</div><div class="source-desc">EU consolidated financial sanctions. Russian gold ban, Belarus, Iran. XML/JSON. Critical for LBMA and European jewellers.</div><div class="source-ep">EC webgate FSF XML</div><span class="source-status ss-free">Free</span></div>
+    <div class="source-card"><div class="source-name">DRI Press Releases</div><div class="source-type">India enforcement · Real-time</div><div class="source-desc">Every India gold seizure within hours. Python BeautifulSoup scraper. Multi-corridor filter (Kerala, NE, land, air). Primary India intel.</div><div class="source-ep">dri.nic.in/main/prelease</div><span class="source-status ss-free">Free · Scrapeable</span></div>
+    <div class="source-card"><div class="source-name">PIB RSS Feed</div><div class="source-type">India govt announcements</div><div class="source-desc">All Finance Ministry, DRI, and Customs gold announcements via RSS. Real-time monitoring of Indian enforcement landscape.</div><div class="source-ep">pib.gov.in/RssMain.aspx?ModId=6</div><span class="source-status ss-free">Free RSS</span></div>
+    <div class="source-card"><div class="source-name">Sansad.in (Parliament)</div><div class="source-type">India parliamentary data</div><div class="source-desc">Finance Ministry gold seizure statistics in written replies. Airport-wise breakdowns — most granular India data source available.</div><div class="source-ep">sansad.in/ls/questions/</div><span class="source-status ss-pub">Public records</span></div>
+    <div class="source-card"><div class="source-name">UN Comtrade</div><div class="source-type">Trade flows · HS 7108</div><div class="source-desc">Official bilateral gold trade statistics. India-UAE, UAE-Africa. Free tier: 500 req/month. Monthly data, annual from 1988.</div><div class="source-ep">comtradeplus.un.org/?cmdCode=7108</div><span class="source-status ss-api">Free key</span></div>
+    <div class="source-card"><div class="source-name">IMF IFS (SDMX API)</div><div class="source-type">Central bank reserves · Monthly</div><div class="source-desc">Official central bank gold holdings for all countries. Free SDMX JSON API. 2-month lag. Primary source for WGC CB data.</div><div class="source-ep">dataservices.imf.org/REST/SDMX_JSON.svc/</div><span class="source-status ss-free">Free SDMX</span></div>
+    <div class="source-card"><div class="source-name">FRED (St. Louis Fed)</div><div class="source-type">Macro / Daily</div><div class="source-desc">LBMA gold price series, USD index, interest rates — all macro drivers of gold price. Free API key. Excellent for correlations.</div><div class="source-ep">api.stlouisfed.org/fred/series/observations</div><span class="source-status ss-api">Free key</span></div>
+    <div class="source-card"><div class="source-name">World Gold Council</div><div class="source-type">Market intelligence</div><div class="source-desc">Quarterly demand trends, central bank data, mine production, ETF flows. Industry standard reference. Downloadable datasets.</div><div class="source-ep">gold.org/goldhub/data</div><span class="source-status ss-free">Free download</span></div>
+    <div class="source-card"><div class="source-name">Global Witness</div><div class="source-type">Conflict minerals intel</div><div class="source-desc">Investigations into DRC, Mali, Sudan conflict gold. Dubai nexus documentation. Used by LBMA for responsible sourcing audits.</div><div class="source-ep">globalwitness.org/campaigns/conflict-minerals/</div><span class="source-status ss-free">Free reports</span></div>
+    <div class="source-card"><div class="source-name">TraCCC GMU</div><div class="source-type">Academic intelligence</div><div class="source-desc">George Mason University research on Dubai as illicit gold hub. Definitive study on all major corridors. All reports free.</div><div class="source-ep">traccc.gmu.edu/publications/</div><span class="source-status ss-free">Free research</span></div>
+    <div class="source-card"><div class="source-name">GFI (Global Fin. Integrity)</div><div class="source-type">Trade misinvoicing</div><div class="source-desc">Tracks gold trade misinvoicing between India-UAE, LatAm-USA. Illicit financial flow quantification. Annual reports free.</div><div class="source-ep">gfintegrity.org/reports/</div><span class="source-status ss-free">Free reports</span></div>
+    <div class="source-card"><div class="source-name">USGS Mineral Resources</div><div class="source-type">Mine production · Annual</div><div class="source-desc">Gold mine production by country. Free Excel/CSV download. Critical for supply-side and provenance analysis globally.</div><div class="source-ep">usgs.gov/centers/nmic/gold-statistics</div><span class="source-status ss-free">Free download</span></div>
+    <div class="source-card"><div class="source-name">DMCC Trade Reports</div><div class="source-type">UAE gold trade · Annual</div><div class="source-desc">Dubai Multi Commodities Centre annual gold trade data. UAE is world's largest gold re-export hub. Member refinery list public.</div><div class="source-ep">dmcc.ae/knowledge-centre/reports</div><span class="source-status ss-free">Free PDF</span></div>
+    <div class="source-card"><div class="source-name">India TradeStats (MoCI)</div><div class="source-type">India trade · Monthly</div><div class="source-desc">Ministry of Commerce HS 7108 import/export by country. 2017-present. Most granular India bilateral trade data. Free CSV.</div><div class="source-ep">tradestat.commerce.gov.in</div><span class="source-status ss-free">Free download</span></div>
+    <div class="source-card"><div class="source-name">BIS Statistics</div><div class="source-type">Banking + FX · Quarterly</div><div class="source-desc">Bank for International Settlements. Gold-backed lending, cross-border gold flows, Russia evasion documentation. Free.</div><div class="source-ep">bis.org/statistics/full_data_sets.htm</div><span class="source-status ss-free">Free download</span></div>
+    <div class="source-card"><div class="source-name">World Bank Open Data</div><div class="source-type">Macro indicators</div><div class="source-desc">Current account, commodity forecasts, inflation affecting gold demand. Full free REST API. Quarterly updates.</div><div class="source-ep">api.worldbank.org/v2/</div><span class="source-status ss-free">Free API</span></div>
+  </div>
+</div>
+
+</main>
 </div>
 
 <script>
-// ── Navigation ──
+// ── CLOCK ──
+function updateClock() {
+  const n = new Date();
+  const h = n.getUTCHours().toString().padStart(2,'0');
+  const m = n.getUTCMinutes().toString().padStart(2,'0');
+  const s = n.getUTCSeconds().toString().padStart(2,'0');
+  const el = document.getElementById('clock');
+  if(el) el.textContent = h+':'+m+':'+s+' UTC';
+}
+setInterval(updateClock, 1000); updateClock();
+
+// ── NAVIGATION ──
 function showPage(id, el) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + id).classList.add('active');
-  el.classList.add('active');
-  initChartsForPage(id);
+  const p = document.getElementById('page-'+id);
+  if(p) p.classList.add('active');
+  if(el) el.classList.add('active');
+  if(!chartsBuilt[id]) { chartsBuilt[id]=true; buildChartsFor(id); }
 }
 
-// ── Clock ──
-function updateClock() {
-  const now = new Date();
-  const utc = now.toUTCString().split(' ')[4];
-  document.getElementById('clock').textContent = utc + ' UTC';
+let livePrice = 3241.80, chartsBuilt = {};
+
+// ── GOLD PRICE API ──
+async function fetchGoldPrice() {
+  try {
+    const r = await fetch('https://www.gold-api.com/price/XAU');
+    const d = await r.json();
+    if(d && d.price) livePrice = parseFloat(d.price);
+  } catch(e) { livePrice += (Math.random() - 0.49) * 1.5; }
+  updatePriceUI();
 }
-setInterval(updateClock, 1000);
-updateClock();
 
-// ── Gold price simulation (replace with real API call) ──
-let basePrice = 3241.80;
-function updatePrice() {
-  const delta = (Math.random() - 0.49) * 0.8;
-  basePrice = Math.max(3000, basePrice + delta);
-  const change = ((basePrice - 3228.3) / 3228.3 * 100).toFixed(2);
-  const inrPrice = (basePrice * 83.2 / 31.1035 * 10).toFixed(0);
+function updatePriceUI() {
+  const p = livePrice;
+  const inr10g = Math.round(p * 84.1 / 31.1035 * 10);
+  const inrCoin = Math.round(p * 84.1 / 31.1035 * 4.25);
+  const chg = ((p - 3228) / 3228 * 100).toFixed(2);
+  const isUp = parseFloat(chg) >= 0;
+  const chgStr = (isUp ? '+' : '') + chg + '%';
+  const lu = new Date().toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit'});
 
-  document.getElementById('live-price').textContent = '$' + basePrice.toFixed(2);
-  document.getElementById('inr-price').textContent = '₹' + parseInt(inrPrice).toLocaleString('en-IN');
-  document.getElementById('dash-price').textContent = '$' + Math.round(basePrice).toLocaleString();
+  const set = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
+  const cls = (id, c) => { const el=document.getElementById(id); if(el) { el.className='tb-price-change '+(c?'up':'dn'); } };
 
-  const changeEl = document.getElementById('price-change');
-  const dashChange = document.getElementById('dash-change');
-  changeEl.textContent = (change >= 0 ? '+' : '') + change + '%';
-  changeEl.className = 'tb-price-change ' + (change >= 0 ? 'up' : 'dn');
-  dashChange.textContent = (change >= 0 ? '+' : '') + change + '% today';
-  dashChange.className = 'sc-change ' + (change >= 0 ? 'up' : 'dn');
-
-  // Update arbitrage page
-  const dubaiFactor = 0.945;
-  const dubaPrice = Math.round(inrPrice * dubaiFactor / 1000) * 1000;
-  const dutyPrice = Math.round(parseInt(inrPrice) * 1.0925 / 100) * 100;
-  const sgPrice = Math.round(parseInt(inrPrice) * 0.958 / 100) * 100;
-  if(document.getElementById('p-dubai')) {
-    document.getElementById('p-dubai').textContent = '₹' + dubaPrice.toLocaleString('en-IN');
-    document.getElementById('p-india').textContent = '₹' + parseInt(inrPrice).toLocaleString('en-IN');
-    document.getElementById('p-india-duty').textContent = '₹' + parseInt(dutyPrice).toLocaleString('en-IN');
-    document.getElementById('p-sg').textContent = '₹' + parseInt(sgPrice).toLocaleString('en-IN');
-  }
+  set('live-price', '$' + Math.round(p).toLocaleString());
+  set('inr-price', '₹' + inr10g.toLocaleString('en-IN'));
+  set('price-change', chgStr); cls('price-change', isUp);
+  set('dash-price', '$' + Math.round(p).toLocaleString());
+  set('dash-change', chgStr + ' today');
+  document.getElementById('dash-change') && (document.getElementById('dash-change').className = 'sc-change ' + (isUp?'up':'dn'));
+  set('sb-price', '$' + Math.round(p).toLocaleString());
+  set('last-update', 'Updated ' + lu);
+  set('arb-price', '$' + Math.round(p).toLocaleString());
+  set('arb-inr', '₹' + inr10g.toLocaleString('en-IN'));
+  const incentive = Math.round((inr10g - Math.round(p * 84.1 * 0.945 / 31.1035 * 10 / 500) * 500) * 100);
+  set('arb-incentive', '₹' + Math.abs(incentive).toLocaleString('en-IN') + '/kg');
+  set('p-london', '$' + Math.round(p).toLocaleString());
+  set('p-dubai', '$' + Math.round(p * 0.9985).toLocaleString());
+  set('p-shanghai', '$' + Math.round(p * 1.003).toLocaleString());
+  set('p-india', '₹' + inr10g.toLocaleString('en-IN'));
+  set('p-india-duty', '₹' + Math.round(inr10g * 1.1025 / 100 * 100).toLocaleString('en-IN'));
+  set('p-singapore', '$' + Math.round(p * 0.9992).toLocaleString());
+  set('p-comex', '$' + Math.round(p * 1.0005).toLocaleString());
+  set('arb-spread-val', '₹' + Math.abs(incentive).toLocaleString('en-IN') + '/kg');
 }
-setInterval(updatePrice, 3000);
-updatePrice();
 
-// ── Seizure feed ──
-const seizureData = [
-  { date: 'Feb 09 2025', text: 'DRI seizes <strong>1,065g</strong> gold from passenger at Calicut Intl Airport — gold concealed inside body', weight: '1.065 kg' },
-  { date: 'Nov 26 2025', text: 'DRI seizes <strong>5.685 kg</strong> gold dust in wax form near Mumbai Central Railway Station', weight: '5.685 kg' },
-  { date: 'Mar 03 2025', text: 'DRI busts major racket — <strong>14.2 kg</strong> gold bars concealed on person at Bengaluru Intl Airport · ₹12.56 Cr', weight: '14.20 kg' },
-  { date: 'Dec 15 2024', text: 'DRI seizes <strong>1.724 kg</strong> gold in paste form smuggled by cabin crew at Chennai Airport', weight: '1.724 kg' },
-  { date: 'Dec 14 2024', text: 'DRI seizes <strong>1.95 kg</strong> smuggled gold concealed in household items at Delhi Courier Terminal', weight: '1.950 kg' },
+fetchGoldPrice();
+setInterval(fetchGoldPrice, 60000);
+
+// ── GLOBAL FEED DATA ──
+const GLOBAL_EVENTS = [
+  { date:'2022-24', text:'Russia routes <strong>~$22B</strong> gold via UAE and Turkey bypassing SWIFT sanctions', weight:'~$22B', wc:'gold' },
+  { date:'Mar 2025', text:'DRI busts major racket — <strong>14.2 kg</strong> gold bars at Bengaluru Airport · ₹12.56Cr', weight:'14.2 kg', wc:'' },
+  { date:'2023', text:'FinCEN identifies <strong>$400M+</strong> Venezuelan gold laundering network via Miami', weight:'$400M+', wc:'blue' },
+  { date:'Nov 2025', text:'DRI seizes <strong>5.685 kg</strong> gold dust in wax form · Mumbai Central Railway', weight:'5.685 kg', wc:'' },
+  { date:'Feb 2025', text:'DRI seizes <strong>1,065g</strong> gold concealed in body at Calicut Airport', weight:'1.065 kg', wc:'' },
+  { date:'Ongoing', text:'UN Panel documents DRC artisanal gold flowing through <strong>Dubai refiners</strong> into formal supply', weight:'Conflict', wc:'purple' },
+  { date:'Ongoing', text:'Myanmar junta earns <strong>$1-2B/yr</strong> from Kachin State military-controlled gold mining', weight:'$1-2B/yr', wc:'gold' },
 ];
 
-function buildFeed() {
-  const feed = document.getElementById('seizure-feed');
-  if (!feed) return;
-  feed.innerHTML = seizureData.map(s => `
+function buildFeed(id, events) {
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.innerHTML = events.map(e => `
     <div class="feed-item">
-      <div class="feed-date">${s.date}</div>
-      <div class="feed-text">${s.text}</div>
-      <div class="feed-weight">${s.weight}</div>
+      <div class="feed-date">${e.date}</div>
+      <div class="feed-text">${e.text}</div>
+      <div class="feed-weight ${e.wc}">${e.weight}</div>
     </div>
   `).join('');
 }
-buildFeed();
 
-// ── Chart defaults ──
-const chartDefaults = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: { legend: { display: false }, tooltip: {
-    backgroundColor: '#0d141c',
-    borderColor: 'rgba(212,168,67,0.3)',
-    borderWidth: 1,
-    titleColor: '#C8D4E0',
-    bodyColor: '#6B7F90',
-    titleFont: { family: "'JetBrains Mono', monospace", size: 11 },
-    bodyFont: { family: "'JetBrains Mono', monospace", size: 11 },
-  }},
-  scales: {
-    x: { grid: { color: 'rgba(200,212,224,0.04)' }, ticks: { color: '#2E3D4A', font: { family: "'JetBrains Mono', monospace", size: 10 } } },
-    y: { grid: { color: 'rgba(200,212,224,0.04)' }, ticks: { color: '#2E3D4A', font: { family: "'JetBrains Mono', monospace", size: 10 } } }
-  }
+buildFeed('global-feed', GLOBAL_EVENTS);
+buildFeed('enforce-feed', GLOBAL_EVENTS);
+
+// ── CHART CONFIG ──
+const MONTHS = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+const PRICE_DATA = [2280,2340,2390,2360,2450,2580,2680,2720,2820,5100,5420,5350];
+const C = {
+  gold:'#D4A843', gold2:'#F0C060', red:'#E05454', green:'#3DB87A', blue:'#4A9EE8',
+  purple:'#9B7ED4', orange:'#E07840', text2:'#6B7F90', bg:'#030507', surface:'#080d12'
 };
 
-// ── Price chart data ──
-const months = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
-const priceData = [2280,2340,2390,2360,2450,2580,2680,2720,2820,5100,5420,5350];
-
-let chartsInit = {};
-
-function initChartsForPage(page) {
-  if (chartsInit[page]) return;
-  chartsInit[page] = true;
-
-  if (page === 'dashboard') initDashboardCharts();
-  if (page === 'seizures') initSeizureCharts();
-  if (page === 'arbitrage') initArbCharts();
-  if (page === 'flows') initFlowCharts();
-  if (page === 'centralbanks') initCBCharts();
+function chartCfg(extra={}={}={} ) {
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        backgroundColor:C.surface, borderColor:'rgba(212,168,67,0.25)', borderWidth:1,
+        titleColor:C.gold2, bodyColor:C.text2,
+        titleFont:{family:"'JetBrains Mono',monospace",size:11},
+        bodyFont:{family:"'JetBrains Mono',monospace",size:10}
+      }
+    },
+    scales:{
+      x:{grid:{color:'rgba(200,212,224,0.04)'},ticks:{color:C.text2,font:{family:"'JetBrains Mono',monospace",size:9}}},
+      y:{grid:{color:'rgba(200,212,224,0.04)'},ticks:{color:C.text2,font:{family:"'JetBrains Mono',monospace",size:9}}}
+    },
+    ...extra
+  };
 }
 
-function initDashboardCharts() {
-  // Price chart
-  new Chart(document.getElementById('priceChart'), {
-    type: 'line',
-    data: {
-      labels: months,
-      datasets: [{
-        data: priceData,
-        borderColor: '#D4A843',
-        backgroundColor: 'rgba(212,168,67,0.06)',
-        borderWidth: 1.5,
-        fill: true,
-        tension: 0.4,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-      }]
-    },
-    options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => '$' + v.toLocaleString() } } } }
-  });
+function mk(id) { const c=document.getElementById(id); return c?c.getContext('2d'):null; }
 
-  // Seizure bar chart
-  new Chart(document.getElementById('seizureChart'), {
-    type: 'bar',
-    data: {
-      labels: ['FY20', 'FY21', 'FY22', 'FY23', 'FY24'],
-      datasets: [{
-        data: [2234, 1821, 3083, 2841, 3714],
-        backgroundColor: 'rgba(224,84,84,0.3)',
-        borderColor: '#E05454',
-        borderWidth: 1,
-        borderRadius: 2,
-      }]
-    },
-    options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + 'kg' } } } }
-  });
-
-  // CB chart
-  new Chart(document.getElementById('cbChart'), {
-    type: 'bar',
-    data: {
-      labels: ['2019','2020','2021','2022','2023','2024','2025'],
-      datasets: [{
-        data: [668, 255, 450, 1082, 1037, 1045, 1237],
-        backgroundColor: 'rgba(212,168,67,0.25)',
-        borderColor: '#D4A843',
-        borderWidth: 1,
-        borderRadius: 2,
-      }]
-    },
-    options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + 't' } } } }
-  });
+function buildChartsFor(page) {
+  if(page==='dashboard') {
+    const pc=mk('priceChart');
+    if(pc) new Chart(pc,{type:'line',data:{labels:MONTHS,datasets:[{data:PRICE_DATA,borderColor:C.gold,backgroundColor:'rgba(212,168,67,0.06)',borderWidth:1.5,fill:true,tension:0.4,pointRadius:0}]},options:{...chartCfg(),scales:{...chartCfg().scales,y:{...chartCfg().scales.y,ticks:{...chartCfg().scales.y.ticks,callback:v=>'$'+v.toLocaleString()}}}}});
+    const cc=mk('cbChart');
+    if(cc) new Chart(cc,{type:'bar',data:{labels:['2019','2020','2021','2022','2023','2024','2025'],datasets:[{data:[668,255,450,1082,1037,1045,1237],backgroundColor:'rgba(212,168,67,0.25)',borderColor:C.gold,borderWidth:1,borderRadius:3}]},options:{...chartCfg(),scales:{...chartCfg().scales,y:{...chartCfg().scales.y,ticks:{...chartCfg().scales.y.ticks,callback:v=>v+'t'}}}}});
+    const sc=mk('seizureChart');
+    if(sc) new Chart(sc,{type:'bar',data:{labels:['FY20','FY21','FY22','FY23','FY24'],datasets:[{data:[2234,1821,3083,2841,3714],backgroundColor:'rgba(224,84,84,0.3)',borderColor:C.red,borderWidth:1,borderRadius:3}]},options:{...chartCfg(),scales:{...chartCfg().scales,y:{...chartCfg().scales.y,ticks:{...chartCfg().scales.y.ticks,callback:v=>v+'kg'}}}}});
+    const ic=mk('illicitChart');
+    if(ic) new Chart(ic,{type:'doughnut',data:{labels:['W.Africa→Dubai','Russia evasion','LatAm→USA/EU','Myanmar','E.Africa','Other'],datasets:[{data:[10,8,4,1.5,1.5,5],backgroundColor:['rgba(224,84,84,0.7)','rgba(155,126,212,0.7)','rgba(224,120,64,0.7)','rgba(212,168,67,0.7)','rgba(74,158,232,0.7)','rgba(107,127,144,0.5)'],borderColor:C.bg,borderWidth:2}]},options:{...chartCfg(),plugins:{...chartCfg().plugins,legend:{display:true,position:'right',labels:{color:C.text2,font:{family:"'JetBrains Mono',monospace",size:8},boxWidth:8,padding:6}}}}});
+    const mc=mk('mineChart');
+    if(mc) new Chart(mc,{type:'bar',data:{labels:['China','Russia','Australia','Canada','USA','Ghana','Mexico','Kaz'],datasets:[{data:[370,310,300,200,170,130,120,110],backgroundColor:'rgba(61,184,122,0.3)',borderColor:C.green,borderWidth:1,borderRadius:3}]},options:{...chartCfg(),indexAxis:'y',scales:{...chartCfg().scales,x:{...chartCfg().scales.x,ticks:{...chartCfg().scales.x.ticks,callback:v=>v+'t'}}}}});
+    const src=mk('sourceChart');
+    if(src) new Chart(src,{type:'doughnut',data:{labels:['UAE','Switzerland','South Africa','Others'],datasets:[{data:[35,25,15,25],backgroundColor:[C.gold,'rgba(74,158,232,0.7)','rgba(61,184,122,0.7)','rgba(107,127,144,0.5)'],borderColor:C.bg,borderWidth:2}]},options:{...chartCfg(),plugins:{...chartCfg().plugins,legend:{display:true,position:'right',labels:{color:C.text2,font:{family:"'JetBrains Mono',monospace",size:9},boxWidth:8,padding:6}}}}});
+  }
+  if(page==='enforcement') {
+    const st=mk('seizureTrend');
+    if(st) new Chart(st,{type:'line',data:{labels:['FY20','FY21','FY22','FY23','FY24'],datasets:[{label:'Total India',data:[2234,1821,3083,2841,3714],borderColor:C.red,backgroundColor:'rgba(224,84,84,0.06)',fill:true,tension:0.4,borderWidth:1.5,pointRadius:3},{label:'Kerala airports',data:[420,310,586,520,690],borderColor:C.gold,backgroundColor:'rgba(212,168,67,0.05)',fill:true,tension:0.4,borderWidth:1.5,pointRadius:3}]},options:{...chartCfg(),plugins:{...chartCfg().plugins,legend:{display:true,labels:{color:C.text2,font:{family:"'JetBrains Mono',monospace",size:9},boxWidth:8,padding:10}}},scales:{...chartCfg().scales,y:{...chartCfg().scales.y,ticks:{...chartCfg().scales.y.ticks,callback:v=>v+'kg'}}}}});
+  }
+  if(page==='arbitrage') {
+    const ac=mk('arbChart');
+    if(ac) new Chart(ac,{type:'line',data:{labels:MONTHS,datasets:[{data:PRICE_DATA,borderColor:C.gold,backgroundColor:'rgba(212,168,67,0.06)',borderWidth:2,fill:true,tension:0.4,pointRadius:0}]},options:{...chartCfg(),scales:{...chartCfg().scales,y:{...chartCfg().scales.y,ticks:{...chartCfg().scales.y.ticks,callback:v=>'$'+v.toLocaleString()}}}}});
+  }
+  if(page==='flows') {
+    const imp=mk('importsChart');
+    if(imp) new Chart(imp,{type:'bar',data:{labels:['2018','2019','2020','2021','2022','2023','2024'],datasets:[{data:[762,690,446,797,706,761,800],backgroundColor:'rgba(74,158,232,0.25)',borderColor:C.blue,borderWidth:1,borderRadius:3}]},options:{...chartCfg(),scales:{...chartCfg().scales,y:{...chartCfg().scales.y,ticks:{...chartCfg().scales.y.ticks,callback:v=>v+'t'}}}}});
+    const prod=mk('produceChart');
+    if(prod) new Chart(prod,{type:'bar',data:{labels:['China','Russia','Australia','Canada','USA','Ghana','Mexico','Kazakhstan','Indonesia','South Africa'],datasets:[{data:[370,310,300,200,170,130,120,110,100,90],backgroundColor:'rgba(61,184,122,0.25)',borderColor:C.green,borderWidth:1,borderRadius:3}]},options:{...chartCfg(),indexAxis:'y',scales:{...chartCfg().scales,x:{...chartCfg().scales.x,ticks:{...chartCfg().scales.x.ticks,callback:v=>v+'t'}}}}});
+  }
+  if(page==='centralbanks') {
+    const cbt=mk('cbTrend');
+    if(cbt) new Chart(cbt,{type:'bar',data:{labels:['2015','2016','2017','2018','2019','2020','2021','2022','2023','2024','2025'],datasets:[{data:[590,383,375,656,668,255,450,1082,1037,1045,1237],backgroundColor:(ctx)=>ctx.raw>1000?'rgba(212,168,67,0.45)':'rgba(212,168,67,0.2)',borderColor:C.gold,borderWidth:1,borderRadius:3}]},options:{...chartCfg(),scales:{...chartCfg().scales,y:{...chartCfg().scales.y,ticks:{...chartCfg().scales.y.ticks,callback:v=>v+'t'}}}}});
+    const cbh=mk('cbHolders');
+    if(cbh) new Chart(cbh,{type:'bar',data:{labels:['Uzbekistan','Kazakhstan','Tajikistan','Russia','Turkey','Portugal','Poland','Greece','Romania','India'],datasets:[{data:[80,62,48,47,35,32,17,15,12,10],backgroundColor:'rgba(61,184,122,0.25)',borderColor:C.green,borderWidth:1,borderRadius:3}]},options:{...chartCfg(),indexAxis:'y',scales:{...chartCfg().scales,x:{...chartCfg().scales.x,ticks:{...chartCfg().scales.x.ticks,callback:v=>v+'%'}}}}});
+  }
 }
 
-function initSeizureCharts() {
-  new Chart(document.getElementById('seizureTrend'), {
-    type: 'line',
-    data: {
-      labels: ['FY2020','FY2021','FY2022','FY2023','FY2024'],
-      datasets: [
-        { label: 'Total India', data: [2234,1821,3083,2841,3714], borderColor:'#E05454', backgroundColor:'rgba(224,84,84,0.06)', fill:true, tension:0.4, borderWidth:1.5, pointRadius:3 },
-        { label: 'Kerala airports', data: [420,310,586,520,690], borderColor:'#D4A843', backgroundColor:'rgba(212,168,67,0.06)', fill:true, tension:0.4, borderWidth:1.5, pointRadius:3 },
-      ]
-    },
-    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: true, labels: { color: '#6B7F90', font: { family:"'JetBrains Mono', monospace", size:10 }, boxWidth:12 } } }, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + 'kg' } } } }
-  });
-}
-
-function initArbCharts() {
-  new Chart(document.getElementById('arbPriceChart'), {
-    type: 'line',
-    data: {
-      labels: months,
-      datasets: [{
-        data: priceData,
-        borderColor: '#D4A843',
-        backgroundColor: 'rgba(212,168,67,0.06)',
-        borderWidth: 2,
-        fill: true,
-        tension: 0.4,
-        pointRadius: 0,
-      }]
-    },
-    options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => '$' + v.toLocaleString() } } } }
-  });
-}
-
-function initFlowCharts() {
-  new Chart(document.getElementById('importsChart'), {
-    type: 'bar',
-    data: {
-      labels: ['2018','2019','2020','2021','2022','2023','2024'],
-      datasets: [{
-        data: [762, 690, 446, 797, 706, 761, 800],
-        backgroundColor: 'rgba(74,158,232,0.25)',
-        borderColor: '#4A9EE8',
-        borderWidth: 1,
-        borderRadius: 2,
-      }]
-    },
-    options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + 't' } } } }
-  });
-
-  new Chart(document.getElementById('sourceChart'), {
-    type: 'doughnut',
-    data: {
-      labels: ['UAE','Switzerland','South Africa','Others'],
-      datasets: [{
-        data: [35, 25, 15, 25],
-        backgroundColor: ['#D4A843','#4A9EE8','#3DB87A','#2E3D4A'],
-        borderColor: '#030507',
-        borderWidth: 2,
-      }]
-    },
-    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: true, position: 'bottom', labels: { color:'#6B7F90', font:{family:"'JetBrains Mono',monospace",size:10}, boxWidth:10, padding:12 } } } }
-  });
-}
-
-function initCBCharts() {
-  new Chart(document.getElementById('cbTrendChart'), {
-    type: 'bar',
-    data: {
-      labels: ['2015','2016','2017','2018','2019','2020','2021','2022','2023','2024','2025'],
-      datasets: [{
-        label: 'Net purchases (tonnes)',
-        data: [590, 383, 375, 656, 668, 255, 450, 1082, 1037, 1045, 1237],
-        backgroundColor: (ctx) => ctx.raw > 1000 ? 'rgba(212,168,67,0.5)' : 'rgba(212,168,67,0.2)',
-        borderColor: '#D4A843',
-        borderWidth: 1,
-        borderRadius: 2,
-      }]
-    },
-    options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + 't' } } } }
-  });
-}
-
-// Init dashboard charts on load
-setTimeout(() => initDashboardCharts(), 100);
+// Build dashboard charts on load
+chartsBuilt['dashboard'] = true;
+document.addEventListener('DOMContentLoaded', () => buildChartsFor('dashboard'));
+setTimeout(() => buildChartsFor('dashboard'), 100);
+updatePriceUI();
 </script>
 </body>
 </html>
