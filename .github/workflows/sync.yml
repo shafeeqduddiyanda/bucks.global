@@ -1,0 +1,40 @@
+name: Bucks Intelligence Data Sync
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # every 6 hours
+  workflow_dispatch:          # manual trigger from GitHub UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run sync
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          METALS_API_KEY: ${{ secrets.METALS_API_KEY }}
+          COMTRADE_API_KEY: ${{ secrets.COMTRADE_API_KEY }}
+          DATAGOV_API_KEY: ${{ secrets.DATAGOV_API_KEY }}
+        run: python sync_all.py
+
+      - name: Commit updated data
+        run: |
+          git config user.name "bucks-sync-bot"
+          git config user.email "sync@bucks.global"
+          git add data/
+          git diff --staged --quiet || git commit -m "data: sync $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
