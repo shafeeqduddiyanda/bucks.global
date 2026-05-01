@@ -1,6 +1,6 @@
 {
-  "updated": "2026-04-30T19:27:30.408235+00:00",
+  "updated": "2026-05-01T03:41:12.947842+00:00",
   "source": "data.gov.in",
-  "total": 0,
-  "records": []
+  "status": 429,
+  "note": "Dataset may require specific resource ID"
 }
