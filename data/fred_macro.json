@@ -1,5 +1,5 @@
 {
-  "updated": "2026-05-01T19:16:50.037800+00:00",
+  "updated": "2026-05-02T02:57:43.124155+00:00",
   "source": "FRED \u2014 St. Louis Fed",
   "attribution": "Source: FRED, Federal Reserve Bank of St. Louis",
   "lbma_gold_usd": [],
@@ -367,6 +367,10 @@
   ],
   "fed_funds_rate": [
     {
+      "date": "2026-04-01",
+      "value": "3.64"
+    },
+    {
       "date": "2026-03-01",
       "value": "3.64"
     },
@@ -457,10 +461,6 @@
     {
       "date": "2024-05-01",
       "value": "5.33"
-    },
-    {
-      "date": "2024-04-01",
-      "value": "5.33"
     }
   ],
   "latest_gold": null,
@@ -469,7 +469,7 @@
     "value": "118.7294"
   },
   "latest_fed_rate": {
-    "date": "2026-03-01",
+    "date": "2026-04-01",
     "value": "3.64"
   }
 }
