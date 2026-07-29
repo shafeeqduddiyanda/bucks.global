@@ -1,0 +1,157 @@
+#!/bin/bash
+# Bucks Browser — Soul Engine
+# One-command installer
+# Usage: curl -fsSL https://bucks.global/install | bash
+
+set -e
+
+BUCKS_CID="bafybeifdjsptd56c5gt4pcsx5w7soo2opoylcdcpoyipdk2ynaybdtklgy"
+DRIVE_ID="1OycO2XNxqk4rSxcYIOyiJcmvP8fjMCz7"
+INSTALL_DIR="$HOME/.bucks"
+REPO_DIR="$HOME/.bucks/bucks-browser"
+
+# If this script was downloaded as part of the pinned IPFS folder (alongside
+# bucks-browser-dist.tar.gz, rather than piped in via curl|bash), prefer that
+# local copy — no network fetch needed at all.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-.}")" 2>/dev/null && pwd || echo "")"
+LOCAL_TARBALL="$SCRIPT_DIR/bucks-browser-dist.tar.gz"
+
+echo ""
+echo "╔══════════════════════════════════════╗"
+echo "║        Bucks — Soul Engine           ║"
+echo "║     Web3 Browser + AI Runtime        ║"
+echo "╚══════════════════════════════════════╝"
+echo ""
+
+mkdir -p "$INSTALL_DIR"
+cd "$INSTALL_DIR"
+
+# ── Detect OS ────────────────────────────────────────────────────────────────
+OS="$(uname -s)"
+case "$OS" in
+  Darwin) PLATFORM="mac" ;;
+  Linux)  PLATFORM="linux" ;;
+  *)      echo "Unsupported OS: $OS"; exit 1 ;;
+esac
+echo "Platform: $PLATFORM"
+echo ""
+
+# ── Check Node.js ─────────────────────────────────────────────────────────────
+if ! command -v node &>/dev/null; then
+  echo "Node.js not found. Installing via nvm..."
+  curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+  export NVM_DIR="$HOME/.nvm"
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  nvm install 20
+  nvm use 20
+fi
+NODE_VER=$(node --version)
+echo "✅ Node.js $NODE_VER"
+
+# ── Download Bucks ─────────────────────────────────────────────────────────────
+if [ -d "$REPO_DIR" ]; then
+  echo "✅ Bucks already installed at $REPO_DIR"
+else
+  DOWNLOADED=false
+
+  if [ -f "$LOCAL_TARBALL" ]; then
+    echo "📦 Found bucks-browser-dist.tar.gz next to this script — using it (no download needed)."
+    cp "$LOCAL_TARBALL" "$INSTALL_DIR/bucks.tar.gz"
+    DOWNLOADED=true
+  fi
+
+  # Try IPFS first (if CID is set)
+  if [ "$DOWNLOADED" = false ] && [ -n "$BUCKS_CID" ]; then
+    echo "⬇️  Downloading Bucks..."
+    for GW in "https://ipfs.io/ipfs" "https://cloudflare-ipfs.com/ipfs" "https://dweb.link/ipfs"; do
+      if curl -fsSL --max-time 120 "$GW/$BUCKS_CID/bucks-browser-dist.tar.gz" \
+           -o "$INSTALL_DIR/bucks.tar.gz" 2>/dev/null; then
+        echo "✅ Downloaded from IPFS ($GW)"
+        DOWNLOADED=true
+        break
+      fi
+    done
+  fi
+
+  # Fallback: Google Drive
+  if [ "$DOWNLOADED" = false ] && [ -n "$DRIVE_ID" ]; then
+    curl -fsSL --max-time 180 \
+      "https://drive.google.com/uc?export=download&id=$DRIVE_ID" \
+      -o "$INSTALL_DIR/bucks.tar.gz" && \
+      echo "✅ Downloaded from Drive" && DOWNLOADED=true
+  fi
+
+  if [ "$DOWNLOADED" = false ]; then
+    echo "❌ Could not download Bucks automatically."
+    echo ""
+    echo "Manual steps:"
+    echo "  1. Download bucks-browser-dist.tar.gz from your shared link"
+    echo "  2. Run: tar -xzf bucks-browser-dist.tar.gz -C $INSTALL_DIR"
+    echo "  3. Re-run this script"
+    exit 1
+  fi
+
+  echo "📦 Extracting..."
+  mkdir -p "$REPO_DIR"
+  tar -xzf "$INSTALL_DIR/bucks.tar.gz" -C "$INSTALL_DIR" 2>/dev/null || \
+    tar -xzf "$INSTALL_DIR/bucks.tar.gz" -C "$REPO_DIR" --strip-components=1
+  rm -f "$INSTALL_DIR/bucks.tar.gz"
+fi
+
+# ── Install dependencies ───────────────────────────────────────────────────────
+echo ""
+echo "📦 Installing dependencies..."
+cd "$REPO_DIR"
+npm install --loglevel=error 2>&1 | tail -3
+if [ -d "electron" ]; then
+  npm --prefix electron install --loglevel=error 2>&1 | tail -3
+fi
+
+# ── Create launcher ────────────────────────────────────────────────────────────
+cat > "$INSTALL_DIR/launch-bucks.sh" << 'LAUNCHER'
+#!/bin/bash
+cd "$HOME/.bucks/bucks-browser"
+npm start
+LAUNCHER
+chmod +x "$INSTALL_DIR/launch-bucks.sh"
+
+# macOS: create .app launcher
+if [ "$PLATFORM" = "mac" ]; then
+  APPDIR="$HOME/Applications/Bucks.app/Contents/MacOS"
+  mkdir -p "$APPDIR"
+  cat > "$APPDIR/Bucks" << APPSCRIPT
+#!/bin/bash
+cd "\$HOME/.bucks/bucks-browser"
+npm start
+APPSCRIPT
+  chmod +x "$APPDIR/Bucks"
+  echo "✅ Bucks.app created in ~/Applications"
+fi
+
+# ── Done ───────────────────────────────────────────────────────────────────────
+echo ""
+echo "╔══════════════════════════════════════╗"
+echo "║         ✅ Bucks Installed!           ║"
+echo "╚══════════════════════════════════════╝"
+echo ""
+echo "To launch:"
+if [ "$PLATFORM" = "mac" ]; then
+  echo "  open ~/Applications/Bucks.app"
+  echo "  — or —"
+fi
+echo "  bash ~/.bucks/launch-bucks.sh"
+echo ""
+echo "First launch:"
+echo "  • App core: ~28 MB"
+echo "  • Download AI models from the Component Store"
+echo "  • Models load based on your device specs"
+echo ""
+
+# ── Auto-launch ────────────────────────────────────────────────────────────────
+read -p "Launch Bucks now? [Y/n] " -n 1 -r
+echo ""
+if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+  echo "🚀 Launching Bucks..."
+  cd "$REPO_DIR"
+  npm start
+fi
