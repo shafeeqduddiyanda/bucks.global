@@ -57,17 +57,11 @@
   .brand {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-weight: 600;
-    font-size: 16px;
-    letter-spacing: -0.01em;
   }
-  .brand .dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 12px rgba(94,234,212,0.7);
+  .brand img {
+    display: block;
+    height: 22px;
+    width: auto;
   }
   .nav-links {
     display: flex;
@@ -273,7 +267,7 @@
 <div class="wrap">
 
   <header class="nav">
-    <div class="brand"><span class="dot"></span> Bucks</div>
+    <a class="brand" href="/"><img src="/bucks-logo-white.png" alt="Bucks" width="722" height="208"></a>
     <div class="nav-links">
       <a href="#install">Install</a>
       <a href="/intelligence">Gold Intelligence</a>
