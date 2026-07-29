@@ -131,12 +131,18 @@ if [ "$PLATFORM" = "mac" ]; then
 fi
 
 # ── Install dependencies ───────────────────────────────────────────────────────
+# --no-audit: recent npm versions run a vulnerability audit as part of every
+# `install` by default and print advisory text ("N vulnerabilities... run npm
+# audit fix --force / run npm audit for details") whether or not anyone acts
+# on it. That's just noise for an end-user installer — nobody running this
+# is meant to be triaging the dependency tree's CVEs — so disable the
+# automatic audit outright rather than trying to filter its output.
 echo ""
 echo "📦 Installing dependencies..."
 cd "$REPO_DIR"
-npm install --loglevel=error 2>&1 | tail -3
+npm install --no-audit --loglevel=error 2>&1 | tail -3
 if [ -d "electron" ]; then
-  npm --prefix electron install --loglevel=error 2>&1 | tail -3
+  npm --prefix electron install --no-audit --loglevel=error 2>&1 | tail -3
 fi
 
 # ── Create launcher ────────────────────────────────────────────────────────────
