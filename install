@@ -129,16 +129,32 @@ fi
 # no code signature, no Apple Developer account for this project) and is the
 # wrong tool here anyway — running via `npm start` from a real terminal avoids
 # the whole Gatekeeper/code-signing question rather than fighting it.
+# Both launchers validate the app root before handing off to npm, rather than
+# assuming $HOME/.bucks/bucks-browser is correct — cheap insurance against any
+# future extraction-path regression leaving a clear error instead of npm's
+# "Missing script: start".
 cat > "$INSTALL_DIR/launch-bucks.sh" << 'LAUNCHER'
 #!/bin/bash
-cd "$HOME/.bucks/bucks-browser"
+APP_ROOT=$(find "$HOME/.bucks" -maxdepth 5 -name "package.json" ! -path "*/node_modules/*" \
+  -exec grep -l '"start"' {} \; 2>/dev/null | head -1 | xargs -I{} dirname {})
+if [ -z "$APP_ROOT" ]; then
+  echo "❌ Bucks installation not found. Re-run: curl -fsSL https://bucks.global/install | bash"
+  exit 1
+fi
+cd "$APP_ROOT"
 npm start
 LAUNCHER
 chmod +x "$INSTALL_DIR/launch-bucks.sh"
 
 cat > "$INSTALL_DIR/bucks" << 'BUCKSCLI'
 #!/bin/bash
-cd "$HOME/.bucks/bucks-browser"
+APP_ROOT=$(find "$HOME/.bucks" -maxdepth 5 -name "package.json" ! -path "*/node_modules/*" \
+  -exec grep -l '"start"' {} \; 2>/dev/null | head -1 | xargs -I{} dirname {})
+if [ -z "$APP_ROOT" ]; then
+  echo "❌ Bucks installation not found. Re-run: curl -fsSL https://bucks.global/install | bash"
+  exit 1
+fi
+cd "$APP_ROOT"
 exec npm start
 BUCKSCLI
 chmod +x "$INSTALL_DIR/bucks"
@@ -174,10 +190,28 @@ echo "  • Models load based on your device specs"
 echo ""
 
 # ── Auto-launch ────────────────────────────────────────────────────────────────
-read -p "Launch Bucks now? [Y/n] " -n 1 -r
-echo ""
-if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
-  echo "🚀 Launching Bucks..."
-  cd "$REPO_DIR"
-  npm start
+# This script is normally run as `curl ... | bash` — bash's stdin IS that same
+# pipe, already carrying the rest of this script. A bare `read` with no source
+# competes with bash's own script-buffering over that stream and can consume a
+# few bytes of the not-yet-executed remainder as if it were keyboard input —
+# the exact number of bytes eaten varies by bash build/version, which is why
+# this can surface as a seemingly-random "bash: line N: <fragment>: command
+# not found" for whatever text happened to get swallowed. Read from the
+# controlling terminal explicitly instead of stdin to avoid that entirely.
+# /dev/tty existing and being readable (-r) isn't enough — it can still fail
+# to open with "Device not configured" in a container/CI with no real
+# terminal attached at all, and under `set -e` an unguarded failed redirect
+# would abort the whole script right at the finish line. Actually try opening
+# it in a subshell first; a failing `if` condition is not itself an error
+# under `set -e`, so this is safe either way.
+if (: < /dev/tty) 2>/dev/null; then
+  read -p "Launch Bucks now? [Y/n] " -n 1 -r < /dev/tty
+  echo ""
+  if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+    echo "🚀 Launching Bucks..."
+    cd "$REPO_DIR"
+    npm start
+  fi
+else
+  echo "(non-interactive session — run 'bucks' or 'bash ~/.bucks/launch-bucks.sh' to start)"
 fi
