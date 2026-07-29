@@ -4,7 +4,7 @@
 
 $ErrorActionPreference = "Stop"
 
-$BucksCid = "bafybeifdjsptd56c5gt4pcsx5w7soo2opoylcdcpoyipdk2ynaybdtklgy"
+$BucksCid = "bafybeih2lm3hmtc7j7nkvju2gxy4ty5v6o5d7evrasqkr27s5fak3ssv5q"
 $InstallDir = Join-Path $HOME ".bucks"
 $RepoDir = Join-Path $InstallDir "bucks-browser"
 

@@ -5,7 +5,7 @@
 
 set -e
 
-BUCKS_CID="bafybeifdjsptd56c5gt4pcsx5w7soo2opoylcdcpoyipdk2ynaybdtklgy"
+BUCKS_CID="bafybeih2lm3hmtc7j7nkvju2gxy4ty5v6o5d7evrasqkr27s5fak3ssv5q"
 INSTALL_DIR="$HOME/.bucks"
 REPO_DIR="$HOME/.bucks/bucks-browser"
 
@@ -99,8 +99,11 @@ else
 
   echo "📦 Extracting..."
   mkdir -p "$REPO_DIR"
-  tar -xzf "$INSTALL_DIR/bucks.tar.gz" -C "$INSTALL_DIR" 2>/dev/null || \
-    tar -xzf "$INSTALL_DIR/bucks.tar.gz" -C "$REPO_DIR" --strip-components=1
+  # Always strip the archive's top-level directory (whatever it's named) and
+  # extract straight into REPO_DIR — a plain `-C "$INSTALL_DIR"` extraction
+  # exits 0 regardless of whether the resulting tree lands where expected, so
+  # it can't be used as a success check for "did this go where we need it."
+  tar -xzf "$INSTALL_DIR/bucks.tar.gz" -C "$REPO_DIR" --strip-components=1
   rm -f "$INSTALL_DIR/bucks.tar.gz"
 fi
 
