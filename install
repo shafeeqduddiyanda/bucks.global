@@ -58,9 +58,24 @@ NODE_VER=$(node --version)
 echo "✅ Node.js $NODE_VER"
 
 # ── Download Bucks ─────────────────────────────────────────────────────────────
-if [ -d "$REPO_DIR" ]; then
+# A directory existing at $REPO_DIR isn't proof it's a good install — earlier
+# broken versions of this script could leave behind a $REPO_DIR with no
+# package.json at its own root (nested one level deeper inside a "bucks
+# browser/" subdirectory, or empty from a failed extraction), which `npm
+# install`/`npm start` would only discover much later as a confusing
+# "Missing script: start". The check below is deliberately just
+# "$REPO_DIR/package.json" — not a `find` with any depth — because that
+# broken nested layout DOES have *a* package.json a level or two down, and a
+# permissive search would wrongly call that a good install. npm/the
+# launchers all `cd "$REPO_DIR"` directly, so root is the only place a
+# package.json actually counts.
+if [ -d "$REPO_DIR" ] && [ -f "$REPO_DIR/package.json" ] && grep -q '"start"' "$REPO_DIR/package.json"; then
   echo "✅ Bucks already installed at $REPO_DIR"
 else
+  if [ -d "$REPO_DIR" ]; then
+    echo "⚠️  Existing installation at $REPO_DIR looks broken (no package.json with a start script) — reinstalling."
+    rm -rf "$REPO_DIR"
+  fi
   DOWNLOADED=false
 
   if [ -f "$LOCAL_TARBALL" ]; then
