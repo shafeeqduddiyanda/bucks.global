@@ -169,12 +169,46 @@ chmod +x "$INSTALL_DIR/launch-bucks.sh"
 
 cat > "$INSTALL_DIR/bucks" << 'BUCKSCLI'
 #!/bin/bash
+
+# ── bucks update subcommand ───────────────────────────────────────────────────
+if [ "$1" = "update" ]; then
+  echo "🔍 Checking for updates..."
+  REMOTE_JSON=$(curl -fsSL --max-time 10 https://bucks.global/version.json 2>/dev/null)
+  if [ -z "$REMOTE_JSON" ]; then
+    echo "❌ Could not reach bucks.global — check your connection and try again."
+    exit 1
+  fi
+  REMOTE_VERSION=$(echo "$REMOTE_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['version'])" 2>/dev/null)
+  LOCAL_VERSION=$(node -p "require('$HOME/.bucks/bucks-browser/electron/package.json').version" 2>/dev/null)
+  if [ -z "$REMOTE_VERSION" ]; then
+    echo "❌ Could not parse remote version."
+    exit 1
+  fi
+  if [ "$REMOTE_VERSION" = "$LOCAL_VERSION" ]; then
+    echo "✅ Already up to date (v$LOCAL_VERSION)"
+    exit 0
+  fi
+  echo "🔄 Update available: v$REMOTE_VERSION (current: v${LOCAL_VERSION:-unknown})"
+  echo "⬇️  Downloading and installing update..."
+  rm -rf "$HOME/.bucks/bucks-browser"
+  exec bash -c "$(curl -fsSL https://bucks.global/install)"
+fi
+
+# ── Find app root ──────────────────────────────────────────────────────────────
 APP_ROOT=$(find "$HOME/.bucks" -maxdepth 5 -name "package.json" ! -path "*/node_modules/*" \
   -exec grep -l '"start"' {} \; 2>/dev/null | head -1 | xargs -I{} dirname {})
 if [ -z "$APP_ROOT" ]; then
   echo "❌ Bucks installation not found. Re-run: curl -fsSL https://bucks.global/install | bash"
   exit 1
 fi
+
+# ── Cold-start version check (non-blocking, fails silently if offline) ─────────
+REMOTE_VERSION=$(curl -fsSL --max-time 5 https://bucks.global/version.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['version'])" 2>/dev/null)
+LOCAL_VERSION=$(node -p "require('$APP_ROOT/electron/package.json').version" 2>/dev/null)
+if [ -n "$REMOTE_VERSION" ] && [ "$REMOTE_VERSION" != "$LOCAL_VERSION" ]; then
+  echo "🔄 Update available (v$REMOTE_VERSION). Run: bucks update"
+fi
+
 cd "$APP_ROOT"
 exec npm start
 BUCKSCLI
