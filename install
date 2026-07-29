@@ -104,6 +104,14 @@ else
   rm -f "$INSTALL_DIR/bucks.tar.gz"
 fi
 
+# Defensive: clear any quarantine flag on the extracted tree. Files created
+# by this script are never quarantined (that flag is only set by apps that
+# opt into LSQuarantine, like Safari/Mail — not curl/tar), but this is cheap
+# insurance in case a future distribution path changes that.
+if [ "$PLATFORM" = "mac" ]; then
+  xattr -rd com.apple.quarantine "$REPO_DIR" 2>/dev/null || true
+fi
+
 # ── Install dependencies ───────────────────────────────────────────────────────
 echo ""
 echo "📦 Installing dependencies..."
@@ -114,6 +122,10 @@ if [ -d "electron" ]; then
 fi
 
 # ── Create launcher ────────────────────────────────────────────────────────────
+# No .app bundle: an unsigned .app has no reliable launch path (no Info.plist,
+# no code signature, no Apple Developer account for this project) and is the
+# wrong tool here anyway — running via `npm start` from a real terminal avoids
+# the whole Gatekeeper/code-signing question rather than fighting it.
 cat > "$INSTALL_DIR/launch-bucks.sh" << 'LAUNCHER'
 #!/bin/bash
 cd "$HOME/.bucks/bucks-browser"
@@ -121,17 +133,21 @@ npm start
 LAUNCHER
 chmod +x "$INSTALL_DIR/launch-bucks.sh"
 
-# macOS: create .app launcher
-if [ "$PLATFORM" = "mac" ]; then
-  APPDIR="$HOME/Applications/Bucks.app/Contents/MacOS"
-  mkdir -p "$APPDIR"
-  cat > "$APPDIR/Bucks" << APPSCRIPT
+cat > "$INSTALL_DIR/bucks" << 'BUCKSCLI'
 #!/bin/bash
-cd "\$HOME/.bucks/bucks-browser"
-npm start
-APPSCRIPT
-  chmod +x "$APPDIR/Bucks"
-  echo "✅ Bucks.app created in ~/Applications"
+cd "$HOME/.bucks/bucks-browser"
+exec npm start
+BUCKSCLI
+chmod +x "$INSTALL_DIR/bucks"
+
+# Make `bucks` available as a plain command in new shells.
+if [ "$PLATFORM" = "mac" ]; then
+  ZPROFILE="$HOME/.zprofile"
+  PATH_LINE='export PATH="$HOME/.bucks:$PATH"'
+  touch "$ZPROFILE"
+  if ! grep -qF "$PATH_LINE" "$ZPROFILE"; then
+    echo "$PATH_LINE" >> "$ZPROFILE"
+  fi
 fi
 
 # ── Done ───────────────────────────────────────────────────────────────────────
@@ -141,11 +157,12 @@ echo "║         ✅ Bucks Installed!           ║"
 echo "╚══════════════════════════════════════╝"
 echo ""
 echo "To launch:"
-if [ "$PLATFORM" = "mac" ]; then
-  echo "  open ~/Applications/Bucks.app"
-  echo "  — or —"
-fi
 echo "  bash ~/.bucks/launch-bucks.sh"
+echo "  — or (after opening a new terminal) —"
+echo "  bucks"
+echo ""
+echo "Note: no .app bundle is created. Bucks runs via 'npm start', which"
+echo "avoids macOS Gatekeeper entirely rather than needing a developer account."
 echo ""
 echo "First launch:"
 echo "  • App core: ~28 MB"
