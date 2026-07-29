@@ -6,7 +6,6 @@
 set -e
 
 BUCKS_CID="bafybeifdjsptd56c5gt4pcsx5w7soo2opoylcdcpoyipdk2ynaybdtklgy"
-DRIVE_ID="1OycO2XNxqk4rSxcYIOyiJcmvP8fjMCz7"
 INSTALL_DIR="$HOME/.bucks"
 REPO_DIR="$HOME/.bucks/bucks-browser"
 
@@ -15,6 +14,16 @@ REPO_DIR="$HOME/.bucks/bucks-browser"
 # local copy — no network fetch needed at all.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-.}")" 2>/dev/null && pwd || echo "")"
 LOCAL_TARBALL="$SCRIPT_DIR/bucks-browser-dist.tar.gz"
+
+# A "successful" curl only means we got 200-and-some-bytes — it says nothing
+# about whether those bytes are actually the tarball. A blocked/misconfigured
+# gateway can serve an HTML error page instead, which curl happily saves and
+# `tar` then fails on with a cryptic message. Check the gzip magic bytes
+# before ever trusting a download.
+is_valid_gzip() {
+  [ -s "$1" ] || return 1
+  [ "$(head -c 2 "$1" | od -An -tx1 | tr -d ' \n')" = "1f8b" ]
+}
 
 echo ""
 echo "╔══════════════════════════════════════╗"
@@ -60,32 +69,29 @@ else
     DOWNLOADED=true
   fi
 
-  # Try IPFS first (if CID is set)
+  # Try IPFS first (if CID is set). Multiple gateways for redundancy — any
+  # single one can be down, rate-limited, or blocked on a given network.
+  # (cloudflare-ipfs.com is deliberately not in this list — that hostname no
+  # longer resolves at all.)
   if [ "$DOWNLOADED" = false ] && [ -n "$BUCKS_CID" ]; then
     echo "⬇️  Downloading Bucks..."
-    for GW in "https://ipfs.io/ipfs" "https://cloudflare-ipfs.com/ipfs" "https://dweb.link/ipfs"; do
+    for GW in "https://ipfs.io/ipfs" "https://dweb.link/ipfs" "https://w3s.link/ipfs" "https://nftstorage.link/ipfs"; do
       if curl -fsSL --max-time 120 "$GW/$BUCKS_CID/bucks-browser-dist.tar.gz" \
-           -o "$INSTALL_DIR/bucks.tar.gz" 2>/dev/null; then
+           -o "$INSTALL_DIR/bucks.tar.gz" 2>/dev/null && is_valid_gzip "$INSTALL_DIR/bucks.tar.gz"; then
         echo "✅ Downloaded from IPFS ($GW)"
         DOWNLOADED=true
         break
       fi
+      echo "   ($GW didn't work, trying next...)"
     done
   fi
 
-  # Fallback: Google Drive
-  if [ "$DOWNLOADED" = false ] && [ -n "$DRIVE_ID" ]; then
-    curl -fsSL --max-time 180 \
-      "https://drive.google.com/uc?export=download&id=$DRIVE_ID" \
-      -o "$INSTALL_DIR/bucks.tar.gz" && \
-      echo "✅ Downloaded from Drive" && DOWNLOADED=true
-  fi
-
   if [ "$DOWNLOADED" = false ]; then
-    echo "❌ Could not download Bucks automatically."
+    echo "❌ Could not download Bucks automatically (every IPFS gateway failed or returned an unusable file)."
     echo ""
     echo "Manual steps:"
-    echo "  1. Download bucks-browser-dist.tar.gz from your shared link"
+    echo "  1. Fetch it yourself once a gateway is reachable, e.g.:"
+    echo "     curl -fsSL https://ipfs.io/ipfs/$BUCKS_CID/bucks-browser-dist.tar.gz -o bucks-browser-dist.tar.gz"
     echo "  2. Run: tar -xzf bucks-browser-dist.tar.gz -C $INSTALL_DIR"
     echo "  3. Re-run this script"
     exit 1

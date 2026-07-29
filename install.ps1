@@ -5,7 +5,6 @@
 $ErrorActionPreference = "Stop"
 
 $BucksCid = "bafybeifdjsptd56c5gt4pcsx5w7soo2opoylcdcpoyipdk2ynaybdtklgy"
-$DriveId = "1OycO2XNxqk4rSxcYIOyiJcmvP8fjMCz7"
 $InstallDir = Join-Path $HOME ".bucks"
 $RepoDir = Join-Path $InstallDir "bucks-browser"
 
@@ -14,6 +13,17 @@ $RepoDir = Join-Path $InstallDir "bucks-browser"
 # local copy — no network fetch needed at all.
 $ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { "" }
 $LocalTarball = if ($ScriptDir) { Join-Path $ScriptDir "bucks-browser-dist.tar.gz" } else { "" }
+
+# A 200 response only means we got bytes back — not that they're the actual
+# tarball. A blocked/misconfigured gateway can serve an HTML error page
+# instead, which Invoke-WebRequest happily saves. Check the gzip magic bytes
+# before ever trusting a download.
+function Test-ValidGzip($path) {
+    if (-not (Test-Path $path)) { return $false }
+    if ((Get-Item $path).Length -lt 2) { return $false }
+    $bytes = [System.IO.File]::ReadAllBytes($path)[0..1]
+    return ($bytes[0] -eq 0x1f -and $bytes[1] -eq 0x8b)
+}
 
 Write-Host ""
 Write-Host "+========================================+"
@@ -63,40 +73,36 @@ if (Test-Path $RepoDir) {
 
     if (-not $downloaded -and $BucksCid) {
         Write-Host "Downloading Bucks..."
+        # cloudflare-ipfs.com deliberately not in this list -- that hostname
+        # no longer resolves at all.
         $gateways = @(
             "https://ipfs.io/ipfs",
-            "https://cloudflare-ipfs.com/ipfs",
-            "https://dweb.link/ipfs"
+            "https://dweb.link/ipfs",
+            "https://w3s.link/ipfs",
+            "https://nftstorage.link/ipfs"
         )
         foreach ($gw in $gateways) {
             try {
                 $url = "$gw/$BucksCid/bucks-browser-dist.tar.gz"
                 Invoke-WebRequest -Uri $url -OutFile $tarballPath -TimeoutSec 120 -UseBasicParsing
-                Write-Host "Downloaded from IPFS ($gw)"
-                $downloaded = $true
-                break
+                if (Test-ValidGzip $tarballPath) {
+                    Write-Host "Downloaded from IPFS ($gw)"
+                    $downloaded = $true
+                    break
+                }
+                Write-Host "  ($gw returned something unusable, trying next...)"
             } catch {
-                continue
+                Write-Host "  ($gw didn't work, trying next...)"
             }
         }
     }
 
-    if (-not $downloaded -and $DriveId) {
-        try {
-            $url = "https://drive.google.com/uc?export=download&id=$DriveId"
-            Invoke-WebRequest -Uri $url -OutFile $tarballPath -TimeoutSec 180 -UseBasicParsing
-            Write-Host "Downloaded from Drive"
-            $downloaded = $true
-        } catch {
-            # fall through to the manual-steps error below
-        }
-    }
-
     if (-not $downloaded) {
-        Write-Host "Could not download Bucks automatically."
+        Write-Host "Could not download Bucks automatically (every IPFS gateway failed or returned an unusable file)."
         Write-Host ""
         Write-Host "Manual steps:"
-        Write-Host "  1. Download bucks-browser-dist.tar.gz from your shared link"
+        Write-Host "  1. Fetch it yourself once a gateway is reachable, e.g.:"
+        Write-Host "     Invoke-WebRequest -Uri https://ipfs.io/ipfs/$BucksCid/bucks-browser-dist.tar.gz -OutFile bucks-browser-dist.tar.gz"
         Write-Host "  2. Run: tar -xzf bucks-browser-dist.tar.gz -C `"$InstallDir`""
         Write-Host "  3. Re-run this script"
         exit 1
