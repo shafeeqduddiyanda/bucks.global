@@ -5,3 +5,7 @@
 /install.ps1
   Content-Type: text/plain; charset=utf-8
   Cache-Control: no-cache
+
+/dl/bucks-browser-dist.tar.gz
+  Content-Type: application/gzip
+  Cache-Control: no-cache

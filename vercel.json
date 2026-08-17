@@ -7,6 +7,13 @@
     {
       "source": "/install.ps1",
       "headers": [{ "key": "Content-Type", "value": "text/plain; charset=utf-8" }]
+    },
+    {
+      "source": "/dl/bucks-browser-dist.tar.gz",
+      "headers": [
+        { "key": "Content-Type", "value": "application/gzip" },
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
     }
   ]
 }

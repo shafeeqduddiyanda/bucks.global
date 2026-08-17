@@ -6,6 +6,10 @@
 set -e
 
 BUCKS_CID="bafybeifdjsptd56c5gt4pcsx5w7soo2opoylcdcpoyipdk2ynaybdtklgy"
+# sha256 of the exact tarball this CID points at. Updated together with
+# BUCKS_CID on every release — see scripts/build-and-pin-release.js, which
+# already computes this hash for every artifact it pins.
+BUCKS_SHA256="5922b76129929cfe963a89259917d21206d7c3c5a33a574deb98fa4be106ceae"
 INSTALL_DIR="$HOME/.bucks"
 REPO_DIR="$HOME/.bucks/bucks-browser"
 
@@ -23,6 +27,25 @@ LOCAL_TARBALL="$SCRIPT_DIR/bucks-browser-dist.tar.gz"
 is_valid_gzip() {
   [ -s "$1" ] || return 1
   [ "$(head -c 2 "$1" | od -An -tx1 | tr -d ' \n')" = "1f8b" ]
+}
+
+sha256_of() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" 2>/dev/null | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" 2>/dev/null | awk '{print $1}'
+  fi
+}
+
+# The gzip-magic-byte check catches a gateway serving an error page, but not
+# a connection that just dropped mid-transfer — that also leaves a file that
+# starts with valid gzip bytes, it's just truncated. Verifying the full
+# contents against the known-good hash for this release catches that case
+# too, for any source (gateway, mirror, or the local sibling-file copy).
+is_valid_download() {
+  is_valid_gzip "$1" || return 1
+  [ -z "$BUCKS_SHA256" ] && return 0
+  [ "$(sha256_of "$1")" = "$BUCKS_SHA256" ]
 }
 
 echo ""
@@ -89,7 +112,7 @@ else
   fi
   DOWNLOADED=false
 
-  if [ -f "$LOCAL_TARBALL" ]; then
+  if [ -f "$LOCAL_TARBALL" ] && is_valid_download "$LOCAL_TARBALL"; then
     echo "📦 Found bucks-browser-dist.tar.gz next to this script — using it (no download needed)."
     cp "$LOCAL_TARBALL" "$INSTALL_DIR/bucks.tar.gz"
     DOWNLOADED=true
@@ -98,12 +121,22 @@ else
   # Try IPFS first (if CID is set). Multiple gateways for redundancy — any
   # single one can be down, rate-limited, or blocked on a given network.
   # (cloudflare-ipfs.com is deliberately not in this list — that hostname no
-  # longer resolves at all.)
+  # longer resolves at all. w3s.link and nftstorage.link currently redirect
+  # to dweb.link's own backend, so in practice this is closer to 2-way
+  # redundancy — ipfs.io vs. everything else — not 4-way. Kept as 4 entries
+  # anyway since that redirect target is Protocol Labs' own choice to change
+  # at any time, and a redirecting-but-reachable gateway is still strictly
+  # better than one fewer attempt.)
+  #
+  # --connect-timeout bounds only the TCP/TLS handshake — a gateway that's
+  # unreachable (dead host, firewall dropping SYN) fails in ~8s instead of
+  # silently eating the full --max-time budget meant for an actual slow
+  # transfer of this ~13MB file.
   if [ "$DOWNLOADED" = false ] && [ -n "$BUCKS_CID" ]; then
     echo "⬇️  Downloading Bucks..."
     for GW in "https://ipfs.io/ipfs" "https://dweb.link/ipfs" "https://w3s.link/ipfs" "https://nftstorage.link/ipfs"; do
-      if curl -fsSL --max-time 120 "$GW/$BUCKS_CID/bucks-browser-dist.tar.gz" \
-           -o "$INSTALL_DIR/bucks.tar.gz" 2>/dev/null && is_valid_gzip "$INSTALL_DIR/bucks.tar.gz"; then
+      if curl -fsSL --connect-timeout 8 --max-time 120 "$GW/$BUCKS_CID/bucks-browser-dist.tar.gz" \
+           -o "$INSTALL_DIR/bucks.tar.gz" 2>/dev/null && is_valid_download "$INSTALL_DIR/bucks.tar.gz"; then
         echo "✅ Downloaded from IPFS ($GW)"
         DOWNLOADED=true
         break
@@ -112,14 +145,33 @@ else
     done
   fi
 
+  # Last resort: a same-origin HTTPS mirror. Every gateway above depends on
+  # this release's CID being reachable over IPFS at all — a separate failure
+  # mode from bucks.global itself being up. This mirror needs nothing
+  # IPFS-specific to work, so it's the most independent fallback available.
   if [ "$DOWNLOADED" = false ]; then
-    echo "❌ Could not download Bucks automatically (every IPFS gateway failed or returned an unusable file)."
+    echo "⬇️  All IPFS gateways failed — trying the direct mirror..."
+    if curl -fsSL --connect-timeout 8 --max-time 120 "https://bucks.global/dl/bucks-browser-dist.tar.gz" \
+         -o "$INSTALL_DIR/bucks.tar.gz" 2>/dev/null && is_valid_download "$INSTALL_DIR/bucks.tar.gz"; then
+      echo "✅ Downloaded from bucks.global mirror"
+      DOWNLOADED=true
+    fi
+  fi
+
+  if [ "$DOWNLOADED" = false ]; then
+    echo "❌ Could not download Bucks automatically (every IPFS gateway and the direct mirror failed or returned an unusable file)."
     echo ""
-    echo "Manual steps:"
-    echo "  1. Fetch it yourself once a gateway is reachable, e.g.:"
+    echo "This is usually temporary — gateway/network issues, not a broken release. What to do:"
+    echo "  1. Wait a few minutes and re-run:"
+    echo "     curl -fsSL https://bucks.global/install | bash"
+    echo "  2. Still failing? Fetch the file yourself from any one of these, then continue below:"
+    echo "     curl -fsSL https://dweb.link/ipfs/$BUCKS_CID/bucks-browser-dist.tar.gz -o bucks-browser-dist.tar.gz"
+    echo "     curl -fsSL https://bucks.global/dl/bucks-browser-dist.tar.gz -o bucks-browser-dist.tar.gz"
     echo "     curl -fsSL https://ipfs.io/ipfs/$BUCKS_CID/bucks-browser-dist.tar.gz -o bucks-browser-dist.tar.gz"
-    echo "  2. Run: tar -xzf bucks-browser-dist.tar.gz -C $INSTALL_DIR"
-    echo "  3. Re-run this script"
+    echo "  3. Run: mkdir -p $REPO_DIR && tar -xzf bucks-browser-dist.tar.gz -C $REPO_DIR --strip-components=1"
+    echo "  4. Re-run this script — it'll detect the install and skip straight to dependencies"
+    echo ""
+    echo "  Still stuck? https://github.com/shafeeqduddiyanda/bucks.global/issues"
     exit 1
   fi
 

@@ -5,6 +5,10 @@
 $ErrorActionPreference = "Stop"
 
 $BucksCid = "bafybeifdjsptd56c5gt4pcsx5w7soo2opoylcdcpoyipdk2ynaybdtklgy"
+# sha256 of the exact tarball this CID points at. Updated together with
+# $BucksCid on every release — see scripts/build-and-pin-release.js, which
+# already computes this hash for every artifact it pins.
+$BucksSha256 = "5922b76129929cfe963a89259917d21206d7c3c5a33a574deb98fa4be106ceae"
 $InstallDir = Join-Path $HOME ".bucks"
 $RepoDir = Join-Path $InstallDir "bucks-browser"
 
@@ -23,6 +27,18 @@ function Test-ValidGzip($path) {
     if ((Get-Item $path).Length -lt 2) { return $false }
     $bytes = [System.IO.File]::ReadAllBytes($path)[0..1]
     return ($bytes[0] -eq 0x1f -and $bytes[1] -eq 0x8b)
+}
+
+# The gzip-magic-byte check catches a gateway serving an error page, but not
+# a connection that just dropped mid-transfer — that also leaves a file that
+# starts with valid gzip bytes, it's just truncated. Verifying the full
+# contents against the known-good hash for this release catches that case
+# too, for any source (gateway, mirror, or the local sibling-file copy).
+function Test-ValidDownload($path) {
+    if (-not (Test-ValidGzip $path)) { return $false }
+    if (-not $BucksSha256) { return $true }
+    $actual = (Get-FileHash -Path $path -Algorithm SHA256).Hash
+    return ($actual -eq $BucksSha256)
 }
 
 Write-Host ""
@@ -65,7 +81,7 @@ if (Test-Path $RepoDir) {
     $downloaded = $false
     $tarballPath = Join-Path $InstallDir "bucks.tar.gz"
 
-    if ($LocalTarball -and (Test-Path $LocalTarball)) {
+    if ($LocalTarball -and (Test-Path $LocalTarball) -and (Test-ValidDownload $LocalTarball)) {
         Write-Host "Found bucks-browser-dist.tar.gz next to this script -- using it (no download needed)."
         Copy-Item $LocalTarball $tarballPath -Force
         $downloaded = $true
@@ -74,7 +90,12 @@ if (Test-Path $RepoDir) {
     if (-not $downloaded -and $BucksCid) {
         Write-Host "Downloading Bucks..."
         # cloudflare-ipfs.com deliberately not in this list -- that hostname
-        # no longer resolves at all.
+        # no longer resolves at all. w3s.link and nftstorage.link currently
+        # redirect to dweb.link's own backend, so in practice this is closer
+        # to 2-way redundancy -- ipfs.io vs. everything else -- not 4-way.
+        # Kept as 4 entries anyway since that redirect target is Protocol
+        # Labs' own choice to change at any time, and a redirecting-but-
+        # reachable gateway is still strictly better than one fewer attempt.
         $gateways = @(
             "https://ipfs.io/ipfs",
             "https://dweb.link/ipfs",
@@ -85,7 +106,7 @@ if (Test-Path $RepoDir) {
             try {
                 $url = "$gw/$BucksCid/bucks-browser-dist.tar.gz"
                 Invoke-WebRequest -Uri $url -OutFile $tarballPath -TimeoutSec 120 -UseBasicParsing
-                if (Test-ValidGzip $tarballPath) {
+                if (Test-ValidDownload $tarballPath) {
                     Write-Host "Downloaded from IPFS ($gw)"
                     $downloaded = $true
                     break
@@ -97,14 +118,38 @@ if (Test-Path $RepoDir) {
         }
     }
 
+    # Last resort: a same-origin HTTPS mirror. Every gateway above depends on
+    # this release's CID being reachable over IPFS at all -- a separate
+    # failure mode from bucks.global itself being up. This mirror needs
+    # nothing IPFS-specific to work, so it's the most independent fallback
+    # available.
     if (-not $downloaded) {
-        Write-Host "Could not download Bucks automatically (every IPFS gateway failed or returned an unusable file)."
+        Write-Host "All IPFS gateways failed -- trying the direct mirror..."
+        try {
+            Invoke-WebRequest -Uri "https://bucks.global/dl/bucks-browser-dist.tar.gz" -OutFile $tarballPath -TimeoutSec 120 -UseBasicParsing
+            if (Test-ValidDownload $tarballPath) {
+                Write-Host "Downloaded from bucks.global mirror"
+                $downloaded = $true
+            }
+        } catch {
+            # falls through to the manual-steps message below
+        }
+    }
+
+    if (-not $downloaded) {
+        Write-Host "Could not download Bucks automatically (every IPFS gateway and the direct mirror failed or returned an unusable file)."
         Write-Host ""
-        Write-Host "Manual steps:"
-        Write-Host "  1. Fetch it yourself once a gateway is reachable, e.g.:"
+        Write-Host "This is usually temporary -- gateway/network issues, not a broken release. What to do:"
+        Write-Host "  1. Wait a few minutes and re-run:"
+        Write-Host "     irm https://bucks.global/install.ps1 | iex"
+        Write-Host "  2. Still failing? Fetch the file yourself from any one of these, then continue below:"
+        Write-Host "     Invoke-WebRequest -Uri https://dweb.link/ipfs/$BucksCid/bucks-browser-dist.tar.gz -OutFile bucks-browser-dist.tar.gz"
+        Write-Host "     Invoke-WebRequest -Uri https://bucks.global/dl/bucks-browser-dist.tar.gz -OutFile bucks-browser-dist.tar.gz"
         Write-Host "     Invoke-WebRequest -Uri https://ipfs.io/ipfs/$BucksCid/bucks-browser-dist.tar.gz -OutFile bucks-browser-dist.tar.gz"
-        Write-Host "  2. Run: tar -xzf bucks-browser-dist.tar.gz -C `"$InstallDir`""
-        Write-Host "  3. Re-run this script"
+        Write-Host "  3. Run: New-Item -ItemType Directory -Force -Path `"$RepoDir`"; tar -xzf bucks-browser-dist.tar.gz -C `"$RepoDir`" --strip-components=1"
+        Write-Host "  4. Re-run this script -- it'll detect the install and skip straight to dependencies"
+        Write-Host ""
+        Write-Host "  Still stuck? https://github.com/shafeeqduddiyanda/bucks.global/issues"
         exit 1
     }
 
