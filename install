@@ -5,7 +5,7 @@
 
 set -e
 
-BUCKS_CID="bafybeih2lm3hmtc7j7nkvju2gxy4ty5v6o5d7evrasqkr27s5fak3ssv5q"
+BUCKS_CID="bafybeifdjsptd56c5gt4pcsx5w7soo2opoylcdcpoyipdk2ynaybdtklgy"
 INSTALL_DIR="$HOME/.bucks"
 REPO_DIR="$HOME/.bucks/bucks-browser"
 
@@ -48,6 +48,17 @@ echo ""
 # ── Check Node.js ─────────────────────────────────────────────────────────────
 if ! command -v node &>/dev/null; then
   echo "Node.js not found. Installing via nvm..."
+  # nvm requires Xcode Command Line Tools on macOS — check first
+  if [ "$PLATFORM" = "mac" ] && ! xcode-select -p &>/dev/null; then
+    echo ""
+    echo "⚠️  Xcode Command Line Tools are required but not installed."
+    echo ""
+    echo "Run this first, wait for the install dialog to complete, then re-run this installer:"
+    echo ""
+    echo "  xcode-select --install"
+    echo ""
+    exit 1
+  fi
   curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
   export NVM_DIR="$HOME/.nvm"
   [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
@@ -214,15 +225,14 @@ exec npm start
 BUCKSCLI
 chmod +x "$INSTALL_DIR/bucks"
 
-# Make `bucks` available as a plain command in new shells.
-if [ "$PLATFORM" = "mac" ]; then
-  ZPROFILE="$HOME/.zprofile"
-  PATH_LINE='export PATH="$HOME/.bucks:$PATH"'
-  touch "$ZPROFILE"
-  if ! grep -qF "$PATH_LINE" "$ZPROFILE"; then
-    echo "$PATH_LINE" >> "$ZPROFILE"
+# Make `bucks` available as a plain command in new shells (bash + zsh).
+PATH_LINE='export PATH="$HOME/.bucks:$PATH"'
+for RC_FILE in "$HOME/.zprofile" "$HOME/.zshrc" "$HOME/.bash_profile" "$HOME/.bashrc"; do
+  touch "$RC_FILE"
+  if ! grep -qF "$PATH_LINE" "$RC_FILE"; then
+    echo "$PATH_LINE" >> "$RC_FILE"
   fi
-fi
+done
 
 # ── Done ───────────────────────────────────────────────────────────────────────
 echo ""
@@ -234,6 +244,7 @@ echo "To launch:"
 echo "  bash ~/.bucks/launch-bucks.sh"
 echo "  — or (after opening a new terminal) —"
 echo "  bucks"
+echo "  (if 'bucks' isn't found yet, run: bash ~/.bucks/launch-bucks.sh)"
 echo ""
 echo "Note: no .app bundle is created. Bucks runs via 'npm start', which"
 echo "avoids macOS Gatekeeper entirely rather than needing a developer account."
