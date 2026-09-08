@@ -157,7 +157,13 @@ else
   # mode from bucks.global itself being up. This mirror needs nothing
   # IPFS-specific to work, so it's the most independent fallback available.
   if [ "$DOWNLOADED" = false ]; then
-    echo "⬇️  All IPFS gateways failed — trying the direct mirror..."
+    # With no CID pinned the gateway loop above never ran, so "gateways failed"
+    # would be a lie — and an alarming one on what is currently the normal path.
+    if [ -n "$BUCKS_CID" ]; then
+      echo "⬇️  All IPFS gateways failed — trying the direct mirror..."
+    else
+      echo "⬇️  Downloading Bucks..."
+    fi
     if curl -fsSL --connect-timeout 8 --max-time 120 "https://bucks.global/dl/bucks-browser-dist.tar.gz" \
          -o "$INSTALL_DIR/bucks.tar.gz" 2>/dev/null && is_valid_download "$INSTALL_DIR/bucks.tar.gz"; then
       echo "✅ Downloaded from bucks.global mirror"

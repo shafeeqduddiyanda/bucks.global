@@ -131,7 +131,13 @@ if (Test-Path $RepoDir) {
     # nothing IPFS-specific to work, so it's the most independent fallback
     # available.
     if (-not $downloaded) {
-        Write-Host "All IPFS gateways failed -- trying the direct mirror..."
+        # With no CID pinned the gateway loop above never ran, so "gateways failed"
+        # would be a lie -- and an alarming one on what is currently the normal path.
+        if ($BucksCid) {
+            Write-Host "All IPFS gateways failed -- trying the direct mirror..."
+        } else {
+            Write-Host "Downloading Bucks..."
+        }
         try {
             Invoke-WebRequest -Uri "https://bucks.global/dl/bucks-browser-dist.tar.gz" -OutFile $tarballPath -TimeoutSec 120 -UseBasicParsing
             if (Test-ValidDownload $tarballPath) {
