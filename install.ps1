@@ -4,11 +4,18 @@
 
 $ErrorActionPreference = "Stop"
 
-$BucksCid = "bafybeifdjsptd56c5gt4pcsx5w7soo2opoylcdcpoyipdk2ynaybdtklgy"
+# v1.1.0 is not yet pinned on a public pinning service, so there is no CID that
+# any public gateway can resolve -- see INCIDENT_bucks_global_install.md. Leaving
+# the v1.0.0 CID here would be worse than leaving it empty: it addresses the old
+# bytes, which now fail the $BucksSha256 check below, so every install would burn
+# four 8s gateway timeouts before falling through to the mirror that actually
+# works. Repopulate this the moment v1.1.0 is pinned publicly.
+# Previous (v1.0.0, unreachable): bafybeifdjsptd56c5gt4pcsx5w7soo2opoylcdcpoyipdk2ynaybdtklgy
+$BucksCid = ""
 # sha256 of the exact tarball this CID points at. Updated together with
 # $BucksCid on every release — see scripts/build-and-pin-release.js, which
 # already computes this hash for every artifact it pins.
-$BucksSha256 = "5922b76129929cfe963a89259917d21206d7c3c5a33a574deb98fa4be106ceae"
+$BucksSha256 = "411cc4ab8c1b4344139bc292c35adcb69e47ab863bd1875ae15c7cda598d5b4c"
 $InstallDir = Join-Path $HOME ".bucks"
 $RepoDir = Join-Path $InstallDir "bucks-browser"
 
@@ -143,9 +150,11 @@ if (Test-Path $RepoDir) {
         Write-Host "  1. Wait a few minutes and re-run:"
         Write-Host "     irm https://bucks.global/install.ps1 | iex"
         Write-Host "  2. Still failing? Fetch the file yourself from any one of these, then continue below:"
-        Write-Host "     Invoke-WebRequest -Uri https://dweb.link/ipfs/$BucksCid/bucks-browser-dist.tar.gz -OutFile bucks-browser-dist.tar.gz"
         Write-Host "     Invoke-WebRequest -Uri https://bucks.global/dl/bucks-browser-dist.tar.gz -OutFile bucks-browser-dist.tar.gz"
-        Write-Host "     Invoke-WebRequest -Uri https://ipfs.io/ipfs/$BucksCid/bucks-browser-dist.tar.gz -OutFile bucks-browser-dist.tar.gz"
+        if ($BucksCid) {
+            Write-Host "     Invoke-WebRequest -Uri https://dweb.link/ipfs/$BucksCid/bucks-browser-dist.tar.gz -OutFile bucks-browser-dist.tar.gz"
+            Write-Host "     Invoke-WebRequest -Uri https://ipfs.io/ipfs/$BucksCid/bucks-browser-dist.tar.gz -OutFile bucks-browser-dist.tar.gz"
+        }
         Write-Host "  3. Run: New-Item -ItemType Directory -Force -Path `"$RepoDir`"; tar -xzf bucks-browser-dist.tar.gz -C `"$RepoDir`" --strip-components=1"
         Write-Host "  4. Re-run this script -- it'll detect the install and skip straight to dependencies"
         Write-Host ""

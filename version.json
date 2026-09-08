@@ -1,6 +1,7 @@
 {
   "version": "1.1.0",
-  "cid": "bafybeifdjsptd56c5gt4pcsx5w7soo2opoylcdcpoyipdk2ynaybdtklgy",
-  "notes": "C++ PoW engine + UI 1.1",
-  "releasedAt": "2026-08-13T00:00:00Z"
+  "cid": "",
+  "sha256": "411cc4ab8c1b4344139bc292c35adcb69e47ab863bd1875ae15c7cda598d5b4c",
+  "notes": "C++ PoW engine + UI 1.1, MCP server, task orchestrator, cross-platform launcher",
+  "releasedAt": "2026-09-08T00:00:00Z"
 }

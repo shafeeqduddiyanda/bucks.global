@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bucks — Soul Engine</title>
-<meta name="description" content="Bucks: a Web3 browser and AI runtime. Offline-first mesh networking, E2E encrypted messaging, local AI inference, Chain 8192 wallet.">
+<meta name="description" content="Bucks: a Web3 browser and AI runtime. Offline-first mesh networking, E2E encrypted messaging, local AI inference with NVIDIA NIM cloud fallback, Chain 8192 wallet, and agentic interface.">
 <style>
   :root {
     --bg: #08090c;
@@ -139,6 +139,40 @@
   .copy-btn:hover { color: var(--text); border-color: #333; }
   .copy-btn.copied { color: var(--accent); border-color: var(--accent-dim); }
 
+  .os-tabs {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 14px;
+  }
+  .os-tab {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 7px 16px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .os-tab:hover { color: var(--text); border-color: #333; }
+  .os-tab[aria-selected="true"] {
+    color: var(--accent);
+    border-color: var(--accent-dim);
+    background: var(--accent-dim);
+  }
+  .release-line {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 14px;
+  }
+  .release-line code {
+    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 11px;
+  }
+
   .platform-row {
     display: flex;
     gap: 10px;
@@ -252,6 +286,120 @@
     line-height: 1.5;
   }
 
+  /* ── License section ── */
+  .license-section {
+    padding: 8px 0 72px;
+  }
+  .license-section h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin: 0 0 28px;
+    text-align: center;
+  }
+  .license-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 32px;
+  }
+  .license-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .license-badge {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid rgba(94,234,212,0.2);
+    padding: 5px 14px;
+    border-radius: 100px;
+  }
+  .license-title {
+    font-size: 18px;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+  .license-copy {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin: 0 0 22px;
+  }
+  .license-perms {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 620px) {
+    .license-perms { grid-template-columns: 1fr; }
+  }
+  .perm {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-dim);
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .perm .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+  .dot.green { background: #4ade80; }
+  .dot.yellow { background: #facc15; }
+  .dot.red { background: #f87171; }
+  details.license-text {
+    margin-top: 8px;
+  }
+  details.license-text summary {
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-dim);
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+    transition: color 0.15s;
+  }
+  details.license-text summary::-webkit-details-marker { display: none; }
+  details.license-text summary:hover { color: var(--text); }
+  details.license-text summary::after {
+    content: "▾";
+    font-size: 12px;
+    transition: transform 0.2s;
+  }
+  details.license-text[open] summary::after { transform: rotate(180deg); }
+  .license-pre {
+    margin-top: 12px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--text-dim);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
   footer {
     border-top: 1px solid var(--border);
     padding: 28px 0 48px;
@@ -270,6 +418,8 @@
     <a class="brand" href="/"><img src="/bucks-logo-white.png" alt="Bucks" width="722" height="208"></a>
     <div class="nav-links">
       <a href="#install">Install</a>
+      <a href="#agentic">Agentic Interface</a>
+      <a href="#license">License</a>
       <a href="/intelligence">Gold Intelligence</a>
     </div>
   </header>
@@ -280,6 +430,12 @@
     <p class="tagline">A Web3 browser and AI runtime. Offline-first, peer-to-peer, and built around a local AI you fully own.</p>
 
     <div class="install-block">
+      <div class="os-tabs" role="tablist" aria-label="Choose your platform">
+        <button class="os-tab" role="tab" id="tab-unix" aria-selected="true"
+                aria-controls="cmd-text" onclick="selectOS('unix')">macOS / Linux</button>
+        <button class="os-tab" role="tab" id="tab-windows" aria-selected="false"
+                aria-controls="cmd-text" onclick="selectOS('windows')">Windows</button>
+      </div>
       <div class="code-box">
         <span id="cmd-text">curl -fsSL https://bucks.global/install | bash</span>
         <button class="copy-btn" id="copy-btn" onclick="copyCmd()">Copy</button>
@@ -287,8 +443,10 @@
       <div class="platform-row">
         <span class="pill">macOS</span>
         <span class="pill">Linux</span>
+        <span class="pill">Windows</span>
         <span class="pill">IPFS-native</span>
       </div>
+      <p class="release-line">Latest release v1.1.0 &middot; <code>sha256 411cc4ab&hellip;98d5b4c</code></p>
     </div>
   </section>
 
@@ -305,9 +463,9 @@
         <code>curl -fsSL https://bucks.global/install | bash</code>
       </div>
       <div class="card">
-        <h3>🌐 From IPFS</h3>
-        <p>Fetch the release directly from the network — no central server required.</p>
-        <code class="cid">bafybeifdjsptd56c5gt4pcsx5w7soo2opoylcdcpoyipdk2ynaybdtklgy</code>
+        <h3>🪟 Windows</h3>
+        <p>Run in PowerShell. Installs Bucks to %USERPROFILE%\.bucks and adds a Start Menu shortcut.</p>
+        <code>irm https://bucks.global/install.ps1 | iex</code>
       </div>
     </div>
   </section>
@@ -346,6 +504,85 @@
     </div>
   </section>
 
+  <section class="features" id="agentic">
+    <h2>Agentic Interface — v1.1</h2>
+    <div class="feature-grid">
+      <div class="feature">
+        <div class="icon" style="background:rgba(80,140,255,0.15); color:#508cff;">⚡</div>
+        <div>
+          <h4>Dual-engine intelligence</h4>
+          <p>Local QNN semantic search and NVIDIA NIM cloud reasoning race in parallel per query. QNN wins when quality ≥ 0.65 — NIM overrides silently when it doesn't. Always the best answer, always private-first.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="icon" style="background:rgba(118,185,0,0.15); color:#76b900;">☁</div>
+        <div>
+          <h4>NVIDIA NIM integration</h4>
+          <p>Cloud-grade reasoning via Nemotron 70B, with live token streaming, model selection, and a dedicated NIM execution panel. Transparent quality scoring — you always see which engine answered and why.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="icon" style="background:rgba(124,92,252,0.15); color:#a06fff;">🎯</div>
+        <div>
+          <h4>Project NEXUS agent</h4>
+          <p>A goal-driven agent with typed step traces, browser action approval gates, swarm peer topology, and persistent goal history. Invoke with ⌘+Shift+A — think, act, browse, report.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="icon" style="background:rgba(62,255,154,0.15); color:#3eff9a;">📊</div>
+        <div>
+          <h4>Quality benchmarking</h4>
+          <p>Built-in quality dashboard with sparklines, strategy heat maps, and automated 20-query benchmarks. An RL feedback loop continuously tunes the local engine from every interaction.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="license-section" id="license">
+    <h2>Open Source</h2>
+    <div class="license-card">
+      <div class="license-header">
+        <span class="license-badge">MIT</span>
+        <h3 class="license-title">MIT License</h3>
+      </div>
+      <p class="license-copy">Copyright &copy; 2026 shafeeqduddiyanda</p>
+
+      <div class="license-perms">
+        <div class="perm"><span class="dot green"></span>Commercial use</div>
+        <div class="perm"><span class="dot green"></span>Distribution</div>
+        <div class="perm"><span class="dot green"></span>Modification</div>
+        <div class="perm"><span class="dot green"></span>Private use</div>
+        <div class="perm"><span class="dot yellow"></span>License &amp; copyright notice required</div>
+        <div class="perm"><span class="dot red"></span>No liability or warranty</div>
+      </div>
+
+      <details class="license-text">
+        <summary>View full license text</summary>
+        <pre class="license-pre">MIT License
+
+Copyright (c) 2026 shafeeqduddiyanda
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</pre>
+      </details>
+    </div>
+  </section>
+
   <footer>
     Bucks — Soul Engine · <a href="https://bucks.global">bucks.global</a> · <a href="/intelligence">Global Gold Supply Chain Intelligence</a>
   </footer>
@@ -353,6 +590,25 @@
 </div>
 
 <script>
+const INSTALL_CMDS = {
+  unix: 'curl -fsSL https://bucks.global/install | bash',
+  windows: 'irm https://bucks.global/install.ps1 | iex',
+};
+
+function selectOS(os) {
+  document.getElementById('cmd-text').innerText = INSTALL_CMDS[os];
+  document.getElementById('tab-unix').setAttribute('aria-selected', String(os === 'unix'));
+  document.getElementById('tab-windows').setAttribute('aria-selected', String(os === 'windows'));
+}
+
+// Preselect the visitor's platform. userAgentData is the non-deprecated source
+// where it exists; userAgent is the fallback everywhere else. Defaults to the
+// unix tab, which is what the markup already ships.
+(function detectOS() {
+  const platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.userAgent || '';
+  if (/win/i.test(platform)) selectOS('windows');
+})();
+
 function copyCmd() {
   const text = document.getElementById('cmd-text').innerText;
   navigator.clipboard.writeText(text).then(() => {

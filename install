@@ -5,11 +5,18 @@
 
 set -e
 
-BUCKS_CID="bafybeifdjsptd56c5gt4pcsx5w7soo2opoylcdcpoyipdk2ynaybdtklgy"
+# v1.1.0 is not yet pinned on a public pinning service, so there is no CID that
+# any public gateway can resolve — see INCIDENT_bucks_global_install.md. Leaving
+# the v1.0.0 CID here would be worse than leaving it empty: it addresses the old
+# bytes, which now fail the BUCKS_SHA256 check below, so every install would burn
+# four 8s gateway timeouts before falling through to the mirror that actually
+# works. Repopulate this the moment v1.1.0 is pinned publicly.
+# Previous (v1.0.0, unreachable): bafybeifdjsptd56c5gt4pcsx5w7soo2opoylcdcpoyipdk2ynaybdtklgy
+BUCKS_CID=""
 # sha256 of the exact tarball this CID points at. Updated together with
 # BUCKS_CID on every release — see scripts/build-and-pin-release.js, which
 # already computes this hash for every artifact it pins.
-BUCKS_SHA256="5922b76129929cfe963a89259917d21206d7c3c5a33a574deb98fa4be106ceae"
+BUCKS_SHA256="411cc4ab8c1b4344139bc292c35adcb69e47ab863bd1875ae15c7cda598d5b4c"
 INSTALL_DIR="$HOME/.bucks"
 REPO_DIR="$HOME/.bucks/bucks-browser"
 
@@ -165,9 +172,11 @@ else
     echo "  1. Wait a few minutes and re-run:"
     echo "     curl -fsSL https://bucks.global/install | bash"
     echo "  2. Still failing? Fetch the file yourself from any one of these, then continue below:"
-    echo "     curl -fsSL https://dweb.link/ipfs/$BUCKS_CID/bucks-browser-dist.tar.gz -o bucks-browser-dist.tar.gz"
     echo "     curl -fsSL https://bucks.global/dl/bucks-browser-dist.tar.gz -o bucks-browser-dist.tar.gz"
-    echo "     curl -fsSL https://ipfs.io/ipfs/$BUCKS_CID/bucks-browser-dist.tar.gz -o bucks-browser-dist.tar.gz"
+    if [ -n "$BUCKS_CID" ]; then
+      echo "     curl -fsSL https://dweb.link/ipfs/$BUCKS_CID/bucks-browser-dist.tar.gz -o bucks-browser-dist.tar.gz"
+      echo "     curl -fsSL https://ipfs.io/ipfs/$BUCKS_CID/bucks-browser-dist.tar.gz -o bucks-browser-dist.tar.gz"
+    fi
     echo "  3. Run: mkdir -p $REPO_DIR && tar -xzf bucks-browser-dist.tar.gz -C $REPO_DIR --strip-components=1"
     echo "  4. Re-run this script — it'll detect the install and skip straight to dependencies"
     echo ""
