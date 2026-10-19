@@ -1,9 +1,25 @@
 {
-  "updated": "2026-10-19T12:32:08.834659+00:00",
+  "updated": "2026-10-19T22:06:43.660953+00:00",
   "source": "FRED \u2014 St. Louis Fed",
   "attribution": "Source: FRED, Federal Reserve Bank of St. Louis",
   "lbma_gold_usd": [],
   "usd_index": [
+    {
+      "date": "2026-10-16",
+      "value": "121.4048"
+    },
+    {
+      "date": "2026-10-15",
+      "value": "121.5693"
+    },
+    {
+      "date": "2026-10-14",
+      "value": "122.0037"
+    },
+    {
+      "date": "2026-10-13",
+      "value": "121.4433"
+    },
     {
       "date": "2026-10-09",
       "value": "121.6023"
@@ -347,22 +363,6 @@
     {
       "date": "2026-06-09",
       "value": "119.9617"
-    },
-    {
-      "date": "2026-06-08",
-      "value": "120.034"
-    },
-    {
-      "date": "2026-06-05",
-      "value": "120.0831"
-    },
-    {
-      "date": "2026-06-04",
-      "value": "119.3615"
-    },
-    {
-      "date": "2026-06-03",
-      "value": "119.3848"
     }
   ],
   "fed_funds_rate": [
@@ -465,8 +465,8 @@
   ],
   "latest_gold": null,
   "latest_dxy": {
-    "date": "2026-10-09",
-    "value": "121.6023"
+    "date": "2026-10-16",
+    "value": "121.4048"
   },
   "latest_fed_rate": {
     "date": "2026-09-01",
